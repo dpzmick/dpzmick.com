@@ -1,0 +1,352 @@
+#+TITLE: Understaning Pin for C and C++ Developers
+#+DATE: 2019-05-25
+
+* Understanding =Pin= for C and C++ developers
+
+My initial impression of [[https://doc.rust-lang.org/std/pin/][Pin]] was that it said "hey there's something
+sitting at this memory location. Feel free to use it, even though, in
+this context, the compiler can't lexically prove that it is actually
+still there." My understanding of =Pin= was roughly that it was a
+backdoor through the lifetime system.
+
+Opening up the documentation, the page starts with a discussion about
+=Unpin=. =Unpin= is weird. Basically, =Unpin= says "yeah I know this
+is pinned but you are free to ignore that." My gut reaction to =Unpin=
+was "why would you need this at all?" Doesn't this defeat the purpose
+of =Pin=?  Why is everything =Unpin= by default???
+
+Continuing on, hoping for some redemption further down the page,
+there's a list of rules which must be adhered to in the =unsafe=
+constructor for =Pin=. I found this constraint for types which are
+=!Unpin= to be paricularly mysterious:
+
+#+begin_quote
+It must not be possible to obtain a =&mut P::Target= and then move out
+of that reference (using, for example =mem::swap=).
+#+end_quote
+
+Other guides to =Pin= also noted that calling =mem::replace=, which
+also takes a mutable mutable reference, should not be allowed.
+
+There's a number of fantastic examples in the rust documentation, but
+I still was missing something. The rest of this post will be a
+walkthrough of where I went wrong.
+
+Let's look at this again:
+
+#+begin_quote
+It must not be possible to obtain a =&mut P::Target= and then *move out*
+of that reference (using, for example =mem::swap=).
+#+end_quote
+
+Clearly moving is significant here, what does that mean exactly, and
+why is this such a big deal?
+
+*** C++
+
+I'm more familar with C++ and my familiarty is probably where my
+misunderstandings are coming from. Let's start by understanding what
+it means to move something in C++.
+
+Consider the following struct:
+
+#+name: ThingDef
+#+begin_src cpp
+  struct Thing {
+    Thing(uint64_t id)
+      : id(id)
+    { }
+
+    // The move constructor is only required to leave the object in a
+    // well defined state
+    Thing(Thing&& other)
+      : id(other.id)
+    {
+      other.id = 0;
+    }
+
+    Thing& operator=(Thing&& other)
+    {
+      id       = other.id;
+      other.id = 0;
+      return *this;
+    }
+
+    // non-copyable for clarity
+    Thing(Thing const&)            = delete;
+    Thing& operator=(Thing const&) = delete;
+
+    uint64_t id;
+  };
+#+end_src
+
+C++ says that a move ctor must leave the object moved from in an
+undefined, *but valid* state.
+
+#+begin_src cpp :noweb yes :includes <cstdint> <cstdio> <algorithm>
+  <<ThingDef>>
+
+  int main() {
+    Thing a(10);
+    Thing const& ref = a;
+
+    Thing c = std::move(a);      // moves a, but leave in defined state
+    printf("ref %zu\n", ref.id); // prints 0
+  }
+#+end_src
+
+#+RESULTS:
+: ref 0
+
+Next, consider this (probably wrong in some subtle way) implementation
+of =swap=, and it's usage:
+
+#+begin_src cpp :noweb yes :includes <cstdint> <cstdio> <algorithm>
+  <<ThingDef>>
+
+  template <typename T>
+  void swap(T& a, T& b)
+  {
+    T tmp = std::move(a); // lots of moves
+    a = std::move(b);     // move again
+    b = std::move(tmp);   // oh look, move again!
+  }
+
+  int main() {
+    Thing a(1);
+    Thing b(2);
+
+    Thing& ref = a;
+    swap(a, b);
+    printf("ref %zu\n", ref.id); // prints 2
+  }
+#+end_src
+
+#+RESULTS:
+: ref 2
+
+As far as I know, this is totally valid C++. The reference is just a
+pointer to some chunk of memory, and, all of the moves that we did are
+defined to leave the moved-from object in a "valid" state (you might
+just have to be careful with them).
+
+Let's consider one last struct.
+
+#+name: RBDef
+#+begin_src cpp
+  template <typename T, size_t N>
+  struct ring_buffer {
+    std::array<T, N+1> entries; // use one extra element for easy book-keeping
+
+    // Store pointers. This is bad, there are better ways to make a ring
+    // buffer, but the demonstration is useful.
+    T* head = entries;
+    T* tail = head+1;
+
+    // ...
+  };
+#+end_src
+
+=head= and =tail= both point to elements of entries.  C++ will
+generate a default move contructor for us, but the default is just a
+=memcpy=. If it runs, we'll end up with pointers that point into the
+wrong array. We must write a custom move constructor.
+
+#+begin_src cpp
+  ring_buffer(ring_buffer&& other)
+    : entries( std::move(other.entries) )
+    , head( entries.data() + (other.head - other.entries.data())) // adjust pointer
+    , tail( entries.data() + (other.tail - other.entries.data())) // adjust pointer
+  {
+    other.head = other.entries.data();
+    other.tail = other.head + 1;
+  }
+#+end_src
+
+So, in C++, a =move= is just another user defined operation that you
+can take advantage of in some special places, perhaps to make code
+more efficient or provide some useful semantic for your users.
+
+*** Rust
+
+Let's do the same exercises again in Rust, starting with the =Thing=
+struct.
+
+#+begin_src rust :tangle ex1.rs :tangle ex2.rs :tangle ex3.rs
+  struct Thing {
+      pub id: u64
+  }
+
+  impl Thing {
+      pub fn new(id: u64) -> Self {
+          Self { id }
+      }
+  }
+#+end_src
+
+Trying to port the first example directly into Rust won't work.
+
+#+begin_src rust :tangle ex1.rs
+  fn main() {
+      let a = Thing::new(10);
+      let r = &a;
+
+      let c = a; // this is a move, but won't compile
+      println!("ref {}", r.id);
+  }
+#+end_src
+
+The compiler doesn't like this. It says:
+
+#+begin_src
+error[E0505]: cannot move out of `a` because it is borrowed
+  --> ex1.rs:16:13
+   |
+15 |     let r = &a;
+   |             -- borrow of `a` occurs here
+16 |     let c = a; // this is a move, but won't compile
+   |             ^ move out of `a` occurs here
+17 |
+18 |     println!("ref {}", r.id);
+   |                        ---- borrow later used here
+#+end_src
+
+Rust is telling us that it knows we moved the value, and, since we
+moved it, we can't use it anymore. What does this mean though? What is
+actually goig on in memory.
+
+Let's find out with some unsafe and undefined-behavior inducing Rust.
+Rhe first time I tried something like this, I wasn't sure what to
+expect, so I've come up with a simpler example that's hopefully a bit
+more clear. See if you can figure out what you think this will print:
+
+#+begin_src rust :tangle ex2.rs
+  fn main() {
+      let a = Thing::new(1);
+      let r: *const Thing = &a;
+
+      let c = a;
+      println!("ref {}", unsafe { (*r).id });
+  }
+#+end_src
+
+This prints "1" because the compiler reused the stack space used by
+the object named "a" to store the object named "b."  There was no
+"empty valid husk" left behind.
+
+The operation that Rust used to do this "move" was just =memcpy=.
+
+This behavior is very different from the C++ move. The Rust compiler
+knows about the move and can take advantage of the move to save some
+stack space. Without writing unsafe code, there is no way you'd ever
+be able to access fields from "a" again, so how the compiler wants to
+use that space occupied by =a= after the move is entirely the
+compiler's decsion.
+
+Rule number 1 of Rust move: The compiler knows you moved. The compiler
+can use this to optimize.
+
+The next C++ example was a =swap=. In C++, =swap= calls some move
+constructors to shuffle the data around. In our C++ example, these
+=move= constructors where just memcpy.
+
+Swap in Rust isn't as straightforward as the C++ version. In the C++
+version, we just call the user defined move constructor to do all of
+the hard work.  In Rust, we don't have this user defined function to
+call, so we'll have to actually be explicit about what swap does.
+
+#+begin_src rust :tangle ex3.rs
+  fn swap<T>(a: &mut T, b: &mut T) {
+      // a and b are both valid pointers
+      unsafe {
+          let tmp: T = std::ptr::read(a); // memcpy
+          std::ptr::copy(b, a, 1);        // memcpy
+          std::ptr::write(b, tmp);        // memcpy
+      }
+  }
+#+end_src
+
+Roaming into undefined-behavior territory to poke around:
+
+#+begin_src rust :tangle ex3.rs
+  fn main() {
+      let mut a = Thing::new(1);
+      let mut b = Thing::new(2);
+
+      let r: *const Thing = &a;
+
+      swap(&mut a, &mut b);
+
+      println!("{}", unsafe { (*r).id }); // prints 2
+  }
+#+end_src
+
+This example is nice because it does what you'd expect, but it
+highlights something critical about Rust's move semantics: =move= is
+_always_ the same as =memcpy=. It couldn't be anything other than a
+=memcpy=, since Rust doesn't define anything else on the struct that
+would let us define any other kind of operation.
+
+Rule number 2: Rust move is always _just_ a =memcpy=.
+
+Now, let's think about the ring buffer. It is not even remotely
+idiomatic to write anything like the C++ version of the ring-buffer in
+Rust, but let's do it anyway. I'm also going to pretend that [[https://github.com/rust-lang/rust/issues/44580][const
+generics]] are finished for the sake of clarity.
+
+#+begin_src rust
+  struct RingBuffer<T, const N: usize> {
+      entries: [T; N+1],
+      head: *const T,   // next pop location, T is moved (memcpy) out
+      tail: *mut T,     // next push location, T is moved (memcpy) in
+  }
+#+end_src
+
+The problem now is that we can't define a custom move contructor. If
+this struct is ever moved (including the move-by-memcpy in
+swap/replace), the pointers stored will be point to the wrong piece of
+memory.
+
+The rust solution to this is to mark your type as =!Unpin=.
+
+Once something is marked as =!Unpin=, getting a mutable reference to
+it becomes unsafe. If you get a mutable reference to a pinned type
+which does not implement =Unpin=, you are supposed to promise to never
+call anything that moves out of the type. I have thoughts on the
+actual feasibility of following these rules, but that's a topic for
+another time.
+
+*** Futures/async.await
+    
+Hopefully now, we can understand why this is prerequisite for
+async/await support in Rust.
+
+Consider this async function:
+#+begin_src rust
+  async fn foo() -> u32 {
+      // First call to poll runs until the line with the await
+      let x = [1, 2, 3, 4];
+      let y = &x[1];
+      let nxt_idx= make_network_request().await;
+      
+      // next call to poll runs the last line
+      return y + x[nxt_idx];
+  }
+#+end_src
+
+The compiler will roughly translate this function into a state machine
+with 2 states. That state machine is represented by some struct, and
+the state is updated by calling the =poll= function. The struct used
+to store the data for this state machine will look something like
+this:
+
+#+begin_src rust
+  struct StateMachineData_State1 {
+      x: [u32, 4],
+      y: &u32,      // ignore lifetime. This will point into `x`
+  }
+#+end_src
+
+Since =y= is a reference (pointer), if we =move= (memcpy) the
+intermediate state, we'll be messing up our pointers. This is why
+=Pin= matters for async.
