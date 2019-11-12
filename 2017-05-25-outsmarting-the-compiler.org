@@ -24,7 +24,7 @@ struct __attribute__((packed)) B {
 };
 #+END_SRC
 
-The "padding" arrays are populated ahead of time, so we just need to set `a`, `b`, and `c` for each struct (quickly):
+The "padding" arrays are populated ahead of time, so we just need to set =a=, =b=, and =c= for each struct (quickly):
 
 #+BEGIN_SRC cpp
 template <typename T>
@@ -64,7 +64,7 @@ void write(Wrapper* w)
 
 If =PADDING1 == PADDING2=, then, regardless of the value of the tag (which struct we are populating), we will need to write to the same offsets.
 The cast and the templated function call will all compile out.
-Take a look (`clang-4.0 --std=c++1z -O3`):
+Take a look (=clang-4.0 --std=c++1z -O3=):
 
 #+BEGIN_SRC asm
 .LCPI2_0:
@@ -78,11 +78,11 @@ write(Wrapper*):                      # @write(Wrapper*)
 #+END_SRC
 
 Before we move on, take a moment to appreciate what your compiler just did for you:
-1. It allowed you to write a type safe `writeFields` method. If the layout of the struct changes for some reason, this part of the code will not begin to misbehave.
+1. It allowed you to write a type safe =writeFields= method. If the layout of the struct changes for some reason, this part of the code will not begin to misbehave.
 1. It removed the cost of the abstraction when it could figure out how to.
 
-Unfortunately, if `PADDING1 != PADDING2`, we will need to write the value of `c` in a different location in struct `A` and struct `B`.
-In this case, it looks like we will need read the tag out of the `Wrapper*`, then branch to the appropriate `writeFields` method.
+Unfortunately, if =PADDING1 != PADDING2=, we will need to write the value of =c= in a different location in struct =A= and struct =B=.
+In this case, it looks like we will need read the tag out of the =Wrapper*=, then branch to the appropriate =writeFields= method.
 We are good programmers, we know that branches might be expensive, so we really want avoid any branching.
 
 We can skip the branch by storing the offset in our wrapper struct and precomputing the offset when the wrapper is set up.
@@ -96,7 +96,7 @@ struct WrapperWithOffset {
 };
 #+END_SRC
 
-Next, we can write a new function which will operate on structs of type `A` or type `B`, but, instead of writing to `c` directly, it computes a pointer to `c` using the offset we've stored in the wrapper, then writes to that pointer.
+Next, we can write a new function which will operate on structs of type =A= or type =B=, but, instead of writing to =c= directly, it computes a pointer to =c= using the offset we've stored in the wrapper, then writes to that pointer.
 
 #+BEGIN_SRC cpp
 void writeFieldsWithOffset(A* t, size_t c_offset)
@@ -182,13 +182,13 @@ write(Wrapper*):                      # @write(Wrapper*)
         ret
 #+end_src
 
-The code has changed slightly to account for the new potential values of `Wrapper::v`, but it looks much nicer than a branch.
+The code has changed slightly to account for the new potential values of =Wrapper::v=, but it looks much nicer than a branch.
 
 *** Meaner PADDING
-Reminder: In the previous examples `PADDING1 = 16` and `PADDING2 = 17`.
+Reminder: In the previous examples =PADDING1 = 16= and =PADDING2 = 17=.
 What happens to the generated code if we make the paddings completely wacky?
 
-With `PADDING1 = 16` and `PADDING2 = 173`, and with the enum values reverted to their defaults:
+With =PADDING1 = 16= and =PADDING2 = 173=, and with the enum values reverted to their defaults:
 
 #+BEGIN_SRC cpp
 .LCPI1_0:
@@ -222,7 +222,7 @@ So, have we beaten the compiler?
 The answer to that depends on which compiler you ask.
 
 *** gcc 7.1 (--std=c++1z -O3)
-**** `PADDING1` == `PADDING2`
+**** =PADDING1= == =PADDING2=
 
 #+BEGIN_SRC asm
 writeLessSafe(WrapperWithOffset*):
@@ -245,7 +245,7 @@ write(Wrapper*):
 
 That's a little odd.
 
-**** `PADDING1 = 16` and `PADDING2 = 17`
+**** =PADDING1 = 16= and =PADDING2 = 17=
 
 #+BEGIN_SRC asm
 write(Wrapper*):
@@ -261,7 +261,7 @@ write(Wrapper*):
         ret
 #+END_SRC
 
-** `PADDING1 = 16` and `PADDING2 = 173`
+**** =PADDING1 = 16= and =PADDING2 = 173=
 
 #+BEGIN_SRC asm
 write(Wrapper*):

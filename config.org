@@ -74,5 +74,8 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
 
 * FIXME
 ** TODO autogenerate the CSS for the base16 face, instead of forcing it
-** TODO minify the source for everything
-
+*** TODO minify the source for everything
+** TODO static stuff and images
+** TODO fix underscores
+** TODO RSS feed
+** TODO view source links
