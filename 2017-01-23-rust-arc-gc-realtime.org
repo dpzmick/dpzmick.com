@@ -402,6 +402,7 @@ Let's refer to the docs for =drop=.
 
 #+BEGIN_QUOTE
 This will decrement the strong reference count. If the strong reference count becomes zero and the only other references are =Weak<T>= ones, drops the inner value.
+#+END_QUOTE
 
 In this case, the inner value is some heap allocated memory, so calling drop will deallocate that memory (since no one else is holding any references).
 This is a problem!
