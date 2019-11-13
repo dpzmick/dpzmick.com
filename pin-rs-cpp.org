@@ -196,7 +196,7 @@ Trying to port the first example directly into Rust won't work.
 
 The compiler doesn't like this. It says:
 
-#+begin_src
+#+begin_src rust
 error[E0505]: cannot move out of `a` because it is borrowed
   --> ex1.rs:16:13
    |

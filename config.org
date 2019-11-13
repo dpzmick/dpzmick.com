@@ -8,6 +8,7 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
 # silent results else the adding of results confuses the publisher
 #+BEGIN_SRC emacs-lisp :noweb no-export :var fname=(buffer-file-name) :results silent
   (require 'ox-publish)
+  (require 'ox-rss)
 
   ;; Don't do much with the theme. We'll generate the entire theme using
   ;; css from our emacs color scheme. This tells htmlize to use css
@@ -17,7 +18,7 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
 
   (defun create-preamble (options)
     (concat "<div id='#preamble'><h1><a href='./'>dpzmick.com</a></h1></div>"
-            "<div id='bulb'><a href='#/' onclick='switchModes()'><img class='light-invert' src='static/icons/bulb.png' /></a></div>"))
+            "<div id='bulb' class='need-js' style='display: none'><a href='#/' onclick='switchModes()'><img class='light-invert' src='static/icons/bulb.png' /></a></div>"))
 
   (defun create-postamble (options)
     (concat
@@ -40,6 +41,7 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
               :base-directory ,(file-name-directory fname)
               :publishing-directory ,(concat (file-name-directory fname) "_site")
               :base-extension "org"
+              :exclude "rss.org"
               :recursive t
               :publishing-function org-html-publish-to-html
               :with-author nil
@@ -55,8 +57,12 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
               :html-postamble ,'create-postamble)
 
           ("dpzmick-static"
-           :base-directory "/home/dpzmick/programming/new-website/static"
-           :publishing-directory "/home/dpzmick/programming/new-website/_site/static"
+           :base-directory ,(concat (file-name-directory fname) "static")
+           :publishing-directory ,(concat
+                                   (file-name-as-directory (concat
+                                                            (file-name-directory fname)
+                                                            "_site"))
+                                   "static")
            :base-extension any
            :recursive t
            :publishing-function org-publish-attachment)
@@ -69,10 +75,5 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
 #+END_SRC
 
 * FIXME
-** TODO autogenerate the CSS for the base16 face, instead of forcing it
-*** TODO minify the source for everything
-** TODO static stuff and images
-** TODO fix underscores
 ** TODO RSS feed
-** TODO view source links
 ** TODO footnotes?

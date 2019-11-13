@@ -21,7 +21,7 @@ div #bulb {
     text-align: right;
 }
 
-.org-src-container {
+.org-src-container, .example {
     margin: 1px auto;
     overflow-x: auto;
     background-color: rgba(0, 0, 0, 5%);
@@ -41,9 +41,7 @@ img {
     text-decoration: underline;
 }
 
-// exception when screen is too small
-@media only screen and (max-width: 800px) {
-    #bulb {
-        display: none;
-    }
+blockquote {
+    margin-left: 0;
+    padding-left: 8px;
 }

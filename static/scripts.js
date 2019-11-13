@@ -45,6 +45,11 @@ window.addEventListener("DOMContentLoaded", function() {
     if (current !== "dark") { // dark mode is default
         applyMode();
     }
+
+    var needjs = document.getElementsByClassName("need-js");
+    for (var i = 0; i < needjs.length; i++) {
+        needjs[i].style.display = 'block';
+    }
 }, false);
 
 // with js disabled, this just loads dark mode

@@ -2,62 +2,62 @@
 
 I am currently a software engineer at Jump Trading, living in Chicago.
 
-My interests include programming language theory/design, compilers, operating systems, and high performance computing.
+Some code is on [[https://github.com/dpzmick][github@dpzmick]] and [[https://gitlab.com/dpzmick][gitlab@dpzmick]]. I have a [[./static/resume.pdf][resume available here]] but am not currently seeking a new position.
 
-You can find code at [[https://github.com/dpzmick]] and [[https://gitlab.com/dpzmick]].
-
-FIXME contact info?
+Email: dpzmick gmail
 
 * Projects:
-- Building a modular synthesizer (FIXME link)
+- Modular synthesizer - [[https://www.youtube.com/channel/UCYkk_c66qufhHQBpM5wwLaQ][Videos]]
 - Building a Homelab
-- Undergraduate senior thesis - Automatic parallelization of recursive functions in clojure (FIXME link)
+- Undergraduate senior thesis - [[./static/ugrad-thesis.pdf][Automatic parallelization of recursive functions in clojure]]
 
-* Recent Blog Posts
+* Blog Posts
   
 #+BEGIN_SRC emacs-lisp :exports results :results list
-  (defun filter-pages (lst)
-    (seq-filter (lambda (elt)
-                  (not (or
-                        (string-match-p "config.org" elt)
-                        (string-match-p "index.org" elt))))
-                lst))
+    (defun filter-pages (lst)
+      (seq-filter (lambda (elt)
+                    (not (or
+                          (string-match-p "config.org" elt)
+                          (string-match-p "index.org" elt)
+                          (string-match-p "sitemap.org" elt)
+                          (string-match-p "rss.org" elt))))
+                  lst))
 
-  (defun get-props (filename)
-    (with-temp-buffer
-      (insert-file-contents filename)
-      (append
-       (org-element-map (org-element-parse-buffer) 'keyword
-         (lambda (el)
-           `(,(org-element-property :key el) . ,(org-element-property :value el))))
-       `( ("FILENAME" . ,filename) ))))
+    (defun get-props (filename)
+      (with-temp-buffer
+        (insert-file-contents filename)
+        (append
+         (org-element-map (org-element-parse-buffer) 'keyword
+           (lambda (el)
+             `(,(org-element-property :key el) . ,(org-element-property :value el))))
+         `( ("FILENAME" . ,filename) ))))
 
-  (defun get-posts (posts-directory)
-    (let ((files (filter-pages (directory-files posts-directory nil "^[^\.]+.*.org"))))
-      (mapcar #'get-props files)))
+    (defun get-posts (posts-directory)
+      (let ((files (filter-pages (directory-files posts-directory nil "^[^\.]+.*.org"))))
+        (mapcar #'get-props files)))
 
-  (defun actually-parse-time (time-string)
-    (apply 'encode-time (org-parse-time-string time-string)))
+    (defun actually-parse-time (time-string)
+      (apply 'encode-time (org-parse-time-string time-string)))
 
-  (defun cmp-posts (a b) ;; reverse order
-    (let ((x (actually-parse-time (cdr (assoc "DATE" a))))
-          (y (actually-parse-time (cdr (assoc "DATE" b)))))
-      (time-less-p y x)))
+    (defun cmp-posts (a b) ;; reverse order
+      (let ((x (actually-parse-time (cdr (assoc "DATE" a))))
+            (y (actually-parse-time (cdr (assoc "DATE" b)))))
+        (time-less-p y x)))
 
-  (defun get-sorted-posts (posts-directory)
-    (sort (get-posts posts-directory) #'cmp-posts))
+    (defun get-sorted-posts (posts-directory)
+      (sort (get-posts posts-directory) #'cmp-posts))
 
-  ;; returns lisp-list of links to org mode pages
-  (defun generate-homepage-links (posts-directory)
-    (mapcar (lambda (elt)
-              (concat
-               (cdr (assoc "DATE" elt))
-               " - "
-               "[[file:" (cdr (assoc "FILENAME" elt)) "]"
-               "[" (cdr (assoc "TITLE" elt)) "]]"))
-            (get-sorted-posts posts-directory)))
+    ;; returns lisp-list of links to org mode pages
+    (defun generate-homepage-links (posts-directory)
+      (mapcar (lambda (elt)
+                (concat
+                 (cdr (assoc "DATE" elt))
+                 " - "
+                 "[[file:" (cdr (assoc "FILENAME" elt)) "]"
+                 "[" (cdr (assoc "TITLE" elt)) "]]"))
+              (get-sorted-posts posts-directory)))
 
-  (generate-homepage-links "./")
+    (generate-homepage-links "./")
 #+END_SRC
 
 #+RESULTS:
