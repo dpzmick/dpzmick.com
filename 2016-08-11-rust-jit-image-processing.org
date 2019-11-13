@@ -52,7 +52,12 @@ This isn't the most beautiful way to build a representation of our function, but
 Each function stores is a syntax tree representing the expression that the function computes.
 The syntax tree defined by the =grad= function looks something like this:
 
-![AST](/img/rust_img/ast.svg)
+# org mode svg export is broken
+#+BEGIN_EXPORT html
+<p>
+<img src='/static/rust_img/ast.svg' class='light-invert' />
+</p>
+#+END_EXPORT
 
 There is also helper function that can be used to generate functions which perform a convolution on a single image with a kernel matrix
 For example, to generate a function that takes a single image as input and returns the convolution with the horizontal sobel matrix, use the following code:
@@ -236,7 +241,8 @@ This means that my JIT compiled code runs at the same speed (subject to some jit
 
 Here is a plot of image vs average speedup (the images are sorted by the total number of pixels in the image):
 
-![image vs speedup](/img/rust_img/img_vs_speedup.png)
+#+ATTR_HTML: :class light-invert
+[[./static/rust_img/img_vs_speedup.png]]
 
 There are many more plots, but the overall conclusion is pretty clear: compared to the Rust, I'm not performing very poorly.
 Is this a win? I am not sure, I would need to do many more comparisons.

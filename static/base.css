@@ -1,0 +1,49 @@
+body {
+    font-family: 'Merriweather', 'PT Serif', Georgia, 'Times New Roman', serif;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+#content, #preamble, #postamble {
+    margin: 5px auto;
+    max-width: 1200px;
+    width: 97%; // effectively min
+}
+
+div #bulb {
+    top: 2px;
+    right: 0;
+    min-width: 42px;
+    max-width: 3%;
+    height: auto;
+    position: fixed;
+    z-index: 9999;
+    text-align: right;
+}
+
+.org-src-container {
+    margin: 1px auto;
+    overflow-x: auto;
+    background-color: rgba(0, 0, 0, 5%);
+    background-blend-mode: darken;
+    font-family: "Consolas", "Monaco", "Lucida Console", "Liberation Mono", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Courier New"
+    line-height: 1.0;
+}
+
+img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 80%;
+}
+
+#preamble a {
+    text-decoration: underline;
+}
+
+// exception when screen is too small
+@media only screen and (max-width: 800px) {
+    #bulb {
+        display: none;
+    }
+}

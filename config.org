@@ -3,71 +3,67 @@
 The org configuration used to generate this site.
 Started from [[https://explog.in/config.org.html][explog]] and tried to customize things a bit.
 
-* Stylesheet
-  
-#+NAME: stylesheet
-#+BEGIN_SRC css :noweb no-export
-  body {
-      color: #c5c8c6;
-      background-color: #1d1f21;
-      font-family: 'Merriweather', 'PT Serif', Georgia, 'Times New Roman', serif;
-      font-size: 12pt;
-  }
+* Code
 
-  #content {
-      margin: 0 auto;
-      max-width: 1200px;
-  }
-
-  .org-src-container {
-      overflow-x: auto;
-  }
-#+END_SRC
-
-* HTML Templates
-  
-#+NAME: header
-#+BEGIN_SRC html :noweb no-export
-  <style type='text/css'>
-  <<stylesheet>>
-  </style>
-  
-  <!-- include the extra style sheet generated with org-html-htmlize-generate-css -->
-  <link rel='stylesheet' type='text/css' href='faces.css' />
-  #+END_SRC
-
-* Code:
-
-  # silent results else the adding of results confuses the publisher
-  #+BEGIN_SRC emacs-lisp :noweb no-export :var fname=(buffer-file-name) :results silent
+# silent results else the adding of results confuses the publisher
+#+BEGIN_SRC emacs-lisp :noweb no-export :var fname=(buffer-file-name) :results silent
   (require 'ox-publish)
 
   ;; Don't do much with the theme. We'll generate the entire theme using
   ;; css from our emacs color scheme. This tells htmlize to use css
   ;; classes to annotate the stuff it would have generated colors for.
   (setq org-html-htmlize-output-type 'css)
+  (setq org-export-with-sub-superscripts nil)
+
+  (defun create-preamble (options)
+    (concat "<div id='#preamble'><h1><a href='./'>dpzmick.com</a></h1></div>"
+            "<div id='bulb'><a href='#/' onclick='switchModes()'><img class='light-invert' src='static/icons/bulb.png' /></a></div>"))
+
+  (defun create-postamble (options)
+    (concat
+     "<div id='#postamble'><a href='/'>home</a>   "
+     "<a href=https://gitlab.com/dpzmick/dpzmick.com/blob/master/"
+     (file-relative-name
+      (plist-get options :input-file)
+      (file-name-directory fname))
+     ">view-source</a></div>"))
+
+  (setq header
+        (concat
+         "<script type='text/javascript' src='/static/scripts.js'></script>"
+         "<link rel='stylesheet' type='text/css' href='/static/base.css' />"
+         "<link rel='stylesheet' type='text/css' id='theme-css' href='/static/base16-tomorrow-night.css' />"))
 
   (setq org-publish-project-alist
-        `(
+          `(
           ("dpzmick-notes"
-           :base-directory ,(file-name-directory fname)
-           :publishing-directory ,(concat (file-name-directory fname) "_site")
-           :base-extension "org"
-           :recursive t
-           :publishing-function org-html-publish-to-html
-           :with-author nil
-           :section-numbers nil
-           :with-toc nil
-           :html-validation-link nil
-           :html-head-include-scripts nil
-           :html-head-include-default-style nil
-            :html-footnotes-section "<div class=\"footnotes\" title=\"%s\">%s</div>")
-          ("dpzmick" :components ("dpzmick-notes"))))
+              :base-directory ,(file-name-directory fname)
+              :publishing-directory ,(concat (file-name-directory fname) "_site")
+              :base-extension "org"
+              :recursive t
+              :publishing-function org-html-publish-to-html
+              :with-author nil
+              :section-numbers nil
+              :with-toc nil
+              :html-validation-link nil
+              :html-head-include-scripts nil
+              :html-head-include-default-style nil
+              :headline-levels 4
+              ;; add some custom HTML
+              :html-head-extra ,header
+              :html-preamble  ,'create-preamble
+              :html-postamble ,'create-postamble)
 
-      ;;  ;; add some custom HTML
-      ;;  ;; :html-head-extra ,(create-header)
-      ;;  :html-preamble ,'create-preamble
-      ;;  :html-postamble ,'create-postamble)))
+          ("dpzmick-static"
+           :base-directory "/home/dpzmick/programming/new-website/static"
+           :publishing-directory "/home/dpzmick/programming/new-website/_site/static"
+           :base-extension any
+           :recursive t
+           :publishing-function org-publish-attachment)
+
+          ("dpzmick" :components ("dpzmick-notes"
+                                  "dpzmick-static"))))
+
 
   (org-publish "dpzmick" t)
 #+END_SRC
@@ -79,3 +75,4 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
 ** TODO fix underscores
 ** TODO RSS feed
 ** TODO view source links
+** TODO footnotes?

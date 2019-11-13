@@ -1,7 +1,5 @@
-#+TITLE: dpzmick.com
+#+TITLE: David Zmick
 
-* About Me
-  
 I am currently a software engineer at Jump Trading, living in Chicago.
 
 My interests include programming language theory/design, compilers, operating systems, and high performance computing.
@@ -64,4 +62,5 @@ FIXME contact info?
 
 #+RESULTS:
 - 2019-05-25 - [[file:pin-rs-cpp.org][Understaning Pin for C and C++ Developers]]
-- 2017-05-25 - [[file:outsmarting-the-compiler.org][Outsmarting the Compiler]]
+- 2017-05-25 - [[file:2017-05-25-outsmarting-the-compiler.org][Outsmarting the Compiler]]
+- 2016-08-11 - [[file:2016-08-11-rust-jit-image-processing.org][Rust Image Processing DSL]]
