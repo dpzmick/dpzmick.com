@@ -36,25 +36,24 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
          "<link rel='stylesheet' type='text/css' id='theme-css' href='/static/base16-tomorrow-night.css' />"))
 
   (setq org-publish-project-alist
-          `(
+        `(
           ("dpzmick-notes"
-              :base-directory ,(file-name-directory fname)
-              :publishing-directory ,(concat (file-name-directory fname) "_site")
-              :base-extension "org"
-              :exclude "rss.org"
-              :recursive t
-              :publishing-function org-html-publish-to-html
-              :with-author nil
-              :section-numbers nil
-              :with-toc nil
-              :html-validation-link nil
-              :html-head-include-scripts nil
-              :html-head-include-default-style nil
-              :headline-levels 4
-              ;; add some custom HTML
-              :html-head-extra ,header
-              :html-preamble  ,'create-preamble
-              :html-postamble ,'create-postamble)
+           :base-directory ,(file-name-directory fname)
+           :publishing-directory ,(concat (file-name-directory fname) "_site")
+           :base-extension "org"
+           :recursive t
+           :publishing-function org-html-publish-to-html
+           :with-author nil
+           :section-numbers nil
+           :with-toc nil
+           :html-validation-link nil
+           :html-head-include-scripts nil
+           :html-head-include-default-style nil
+           :headline-levels 4
+           ;; add some custom HTML
+           :html-head-extra ,header
+           :html-preamble  ,'create-preamble
+           :html-postamble ,'create-postamble)
 
           ("dpzmick-static"
            :base-directory ,(concat (file-name-directory fname) "static")
