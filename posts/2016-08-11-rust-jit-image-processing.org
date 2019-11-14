@@ -242,7 +242,7 @@ This means that my JIT compiled code runs at the same speed (subject to some jit
 Here is a plot of image vs average speedup (the images are sorted by the total number of pixels in the image):
 
 #+ATTR_HTML: :class light-invert
-[[./static/rust_img/img_vs_speedup.png]]
+[[../static/rust_img/img_vs_speedup.png]]
 
 There are many more plots, but the overall conclusion is pretty clear: compared to the Rust, I'm not performing very poorly.
 Is this a win? I am not sure, I would need to do many more comparisons.

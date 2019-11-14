@@ -17,8 +17,8 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
   (setq org-export-with-sub-superscripts nil)
 
   (defun create-preamble (options)
-    (concat "<div id='#preamble'><h1><a href='./'>dpzmick.com</a></h1></div>"
-            "<div id='bulb' class='need-js' style='display: none'><a href='#/' onclick='switchModes()'><img class='light-invert' src='static/icons/bulb.png' /></a></div>"))
+    (concat "<div id='#preamble'><h1><a href='/'>dpzmick.com</a></h1></div>"
+            "<div id='bulb' class='need-js' style='display: none'><a href='#/' onclick='switchModes()'><img class='light-invert' src='/static/icons/bulb.png' /></a></div>"))
 
   (defun create-postamble (options)
     (concat
@@ -50,6 +50,7 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
            :html-head-include-scripts nil
            :html-head-include-default-style nil
            :headline-levels 4
+           :auto-sitemap nil
            ;; add some custom HTML
            :html-head-extra ,header
            :html-preamble  ,'create-preamble
