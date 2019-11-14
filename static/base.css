@@ -45,3 +45,23 @@ blockquote {
     margin-left: 0;
     padding-left: 8px;
 }
+
+.footpara {
+    width: 99%;
+    text-alignt: left;
+    float: right;
+    padding: 0;
+    margin: 0;
+}
+
+.footdef {
+    line-height: 3em;
+}
+
+table {
+    width: 100%;
+}
+
+#postamble a {
+    padding-right: 1em;
+}

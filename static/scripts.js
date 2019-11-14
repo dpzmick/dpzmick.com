@@ -48,7 +48,7 @@ window.addEventListener("DOMContentLoaded", function() {
 
     var needjs = document.getElementsByClassName("need-js");
     for (var i = 0; i < needjs.length; i++) {
-        needjs[i].style.display = 'block';
+        needjs[i].style.display = 'inline';
     }
 }, false);
 

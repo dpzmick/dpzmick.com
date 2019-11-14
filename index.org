@@ -2,7 +2,9 @@
 
 I am currently a software engineer at Jump Trading, living in Chicago.
 
-Some code is on [[https://github.com/dpzmick][github@dpzmick]] and [[https://gitlab.com/dpzmick][gitlab@dpzmick]]. I have a [[./static/resume.pdf][resume available here]] but am not currently seeking a new position.
+Some code is on [[https://github.com/dpzmick][github@dpzmick]] and [[https://gitlab.com/dpzmick][gitlab@dpzmick]].
+
+I have a [[./static/resume.pdf][resume available here]] but am not currently seeking a new position.
 
 Email: dpzmick gmail
 
@@ -15,45 +17,47 @@ Email: dpzmick gmail
   
 # apparnetly this is just the sitemap function, implemented badly
 #+BEGIN_SRC emacs-lisp :exports results :results list
-    (defun get-props (filename)
-      (with-temp-buffer
-        (insert-file-contents filename)
-        (append
-         (org-element-map (org-element-parse-buffer) 'keyword
-           (lambda (el)
-             `(,(org-element-property :key el) . ,(org-element-property :value el))))
-         `( ("FILENAME" . ,filename) ))))
+  (defun get-props (filename)
+    (with-temp-buffer
+      (insert-file-contents filename)
+      (append
+       (org-element-map (org-element-parse-buffer) 'keyword
+         (lambda (el)
+           `(,(org-element-property :key el) . ,(org-element-property :value el))))
+       `( ("FILENAME" . ,filename) ))))
 
-    (defun get-posts (posts-directory)
-      (let ((files (directory-files posts-directory t "^[^\.]+.*.org")))
-        (mapcar #'get-props files)))
+  (defun get-posts (posts-directory)
+    (let ((files (directory-files posts-directory t "^[^\.]+.*.org")))
+      (mapcar #'get-props files)))
 
-    (defun actually-parse-time (time-string)
-      (apply 'encode-time (org-parse-time-string time-string)))
+  (defun actually-parse-time (time-string)
+    (apply 'encode-time (org-parse-time-string time-string)))
 
-    (defun cmp-posts (a b) ;; reverse order
-      (let ((x (actually-parse-time (cdr (assoc "DATE" a))))
-            (y (actually-parse-time (cdr (assoc "DATE" b)))))
-        (time-less-p y x)))
+  (defun cmp-posts (a b) ;; reverse order
+    (let ((x (actually-parse-time (cdr (assoc "DATE" a))))
+          (y (actually-parse-time (cdr (assoc "DATE" b)))))
+      (time-less-p y x)))
 
-    (defun get-sorted-posts (posts-directory)
-      (sort (get-posts posts-directory) #'cmp-posts))
+  (defun get-sorted-posts (posts-directory)
+    (sort (get-posts posts-directory) #'cmp-posts))
 
-    ;; returns lisp-list of links to org mode pages
-    (defun generate-homepage-links (posts-directory)
-      (mapcar (lambda (elt)
-                (concat
-                 (cdr (assoc "DATE" elt))
-                 " - "
-                 "[[file:" (cdr (assoc "FILENAME" elt)) "]"
-                 "[" (cdr (assoc "TITLE" elt)) "]]"))
-              (get-sorted-posts posts-directory)))
+  ;; returns lisp-list of links to org mode pages
+  (defun generate-homepage-links (posts-directory)
+    (mapcar (lambda (elt)
+              (concat
+               (format-time-string "%h %d, %Y"
+                                   (actually-parse-time (cdr (assoc "DATE" elt))))
+               " - "
+               "[[file:" (cdr (assoc "FILENAME" elt)) "]"
+               "[" (cdr (assoc "TITLE" elt)) "]]"))
+            (get-sorted-posts posts-directory)))
 
-    (generate-homepage-links "./posts")
+  (generate-homepage-links "./posts")
 #+END_SRC
 
 #+RESULTS:
-- 2019-05-25 - [[file:/home/dpzmick/programming/new-website/posts/pin-rs-cpp.org][Understaning Pin for C and C++ Developers]]
-- 2017-05-25 - [[file:/home/dpzmick/programming/new-website/posts/2017-05-25-outsmarting-the-compiler.org][Outsmarting the Compiler]]
-- 2017-01-23 - [[file:/home/dpzmick/programming/new-website/posts/2017-01-23-rust-arc-gc-realtime.org]["Garbage Collection" for Rust Arc Pointers]]
-- 2016-08-11 - [[file:/home/dpzmick/programming/new-website/posts/2016-08-11-rust-jit-image-processing.org][Rust Image Processing DSL]]
+- May 25, 2019 - [[file:/home/dpzmick/programming/new-website/posts/pin-rs-cpp.org][Understaning Pin for C and C++ Developers]]
+- May 25, 2017 - [[file:/home/dpzmick/programming/new-website/posts/2017-05-25-outsmarting-the-compiler.org][Outsmarting the Compiler]]
+- Jan 23, 2017 - [[file:/home/dpzmick/programming/new-website/posts/2017-01-23-rust-arc-gc-realtime.org]["Garbage Collection" for Rust Arc Pointers]]
+- Dec 17, 2016 - [[file:/home/dpzmick/programming/new-website/posts/2016-12-17-audio-basics.org][Audio programming 101]]
+- Aug 11, 2016 - [[file:/home/dpzmick/programming/new-website/posts/2016-08-11-rust-jit-image-processing.org][Rust Image Processing DSL]]

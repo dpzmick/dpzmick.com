@@ -29,17 +29,21 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
            "<link rel='stylesheet' type='text/css' href='/static/base.css' />"
            "<link rel='stylesheet' type='text/css' id='theme-css' href='/static/base16-tomorrow-night.css' />"))
 
+    ;; "<div id='bulb' class='need-js' style='display: none'><a href='#/' onclick='switchModes()'><img class='light-invert' src='/static/icons/bulb.png' /></a></div>"))
+
     (defun create-preamble (options)
       (concat
-       "<div id='#preamble'><h1><a href='/'>dpzmick.com</a></h1></div>"
-       "<div id='bulb' class='need-js' style='display: none'><a href='#/' onclick='switchModes()'><img class='light-invert' src='/static/icons/bulb.png' /></a></div>"))
+       "<div id='#preamble'><h1><a href='/'>dpzmick.com</a></h1></div>"))
 
     (defun create-postamble (options)
       (concat
-       "<div id='#postamble'><a href='/'>home</a>   "
-       "<a href=https://gitlab.com/dpzmick/dpzmick.com/blob/master/"
-       (plist-get options :input-file)
-       ">view-source</a></div>"))
+       "<div id='#postamble'><a href='/'>home</a>"
+       "<a href=https://gitlab.com/dpzmick/dpzmick.com/raw/master/"
+       (file-relative-name (plist-get options :input-file)
+                           (file-name-directory fname))
+       ">view-source</a>"
+       "<a class='need-js' href='#/' onclick='switchModes()'>switch-color-mode</a>"
+       "</div>"))
 
     (defun org-blog-sitemap-format-entry (entry _style project)
       (when (s-starts-with-p "posts/" entry)

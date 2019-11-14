@@ -857,8 +857,8 @@ There are only a few things left to do.
 The GC thread that we have created will never terminate.
 
 Ideally, when the GC goes out of scope, it will shut down the GC thread and clean up any tracked memory (if it can).
-Any =Arc=s which can't be freed when the GC is shut down will not be freed, but (this is important) the reference count will drop by one.
-Now, if one of the previously tracked =Arc=s goes out of scope, it will be freed on whatever thread drops it (this could be the realtime thread!)
+Any =Arc=  which can't be freed when the GC is shut down will not be freed, but (this is important) the reference count will drop by one.
+Now, if one of the previously tracked =Arc= s goes out of scope, it will be freed on whatever thread drops it (this could be the realtime thread!)
 
 So, as long as the realtime thread keeps running, we must keep the GC thread running.
 

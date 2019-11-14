@@ -2,8 +2,6 @@
 #+AUTHOR: David Zmick
 #+DATE: <2017-05-25>
 
-* Outsmarting the compiler
-
 Suppose we have two very similar structs which we need to partially populate "ahead of time" and store somewhere.
 Then, a bit later, we need to **very quickly** finish populating the structs.
 Here are some example structs:
