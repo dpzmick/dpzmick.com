@@ -1,12 +1,12 @@
+#+TITLE: Decision Matrix
+#+DATE: <2014-01-17>
+
 Decision matrix analysis is a simple way of selecting one of many
 options. This post exists to allow me to dump thoughts somewhere (so I
 don't forget them) and share them with others easily. I will probably
 update this document as I have new ideas.
 
-** Brief Description
-   :PROPERTIES:
-   :CUSTOM_ID: brief-description
-   :END:
+* Brief Description
 
 Simply put, a decision consists of objectives and alternatives. An
 objective is something you want to fulfill by making the decision. For
@@ -29,10 +29,10 @@ and a "Somewhat Pleased" for style.
 
 So, this decision in table form would look something like this:
 
-| Objectives   | Cost: Important   | Style: Somewhat Important   |
-|--------------+-------------------+-----------------------------|
-| Maserati     | Very Displeased   | Very Pleased                |
-| Camry        | Very Pleased      | Somewhat Pleased            |
+| Objectives | Cost: Important | Style: Somewhat Important |
+|------------+-----------------+---------------------------|
+| Maserati   | Very Displeased | Very Pleased              |
+| Camry      | Very Pleased    | Somewhat Pleased          |
 
 You can then define a scale for your ratings and weights and use the
 matrix to determine which option best meets your needs. The score for
@@ -49,10 +49,7 @@ experiment. You can ask question like, "How much cheaper would the
 Maserati need to be for it to become 'better' than the Camry," or, "How
 much of a pay cut am I willing to take to continue living in Houston?"
 
-** Mathematical Definitions
-   :PROPERTIES:
-   :CUSTOM_ID: mathematical-definitions
-   :END:
+* Mathematical Definitions
 
 To model a decision with $n$ objectives and $m$ alternatives, define:
 
@@ -64,16 +61,15 @@ $$ \mathbf{o} =
         w_2 \\
         \vdots  \\
         w_n
-    \end{pmatrix}
-$$
+    \end{pmatrix} $$
 
 where:
 
-$ w_i $ = the weight given to the ith objective.
+$w_i$ = the weight given to the ith objective.
 
 The vector
 $$ \mathbf{a_i} = \begin{pmatrix} r_1 & r_2 & \cdots & r_m \end{pmatrix} $$
-for the ith alternative, where $ r_k $ is the ith alternative's rating
+for the ith alternative, where $r_k$ is the ith alternative's rating
 for the kth objective.
 
 The alternative matrix
@@ -85,12 +81,9 @@ $$ A = \begin{pmatrix}
     \mathbf{a_m}
 \end{pmatrix} $$
 
-The relative strengths of each alternative are given by $ A\mathbf{o} $.
+The relative strengths of each alternative are given by $A\mathbf{o}$.
 
-** Example
-   :PROPERTIES:
-   :CUSTOM_ID: example
-   :END:
+* Example
 
 Let us revist the car example. Suppose my objectives are Cost, Style,
 and Comfort. Using a 1-5 importance scale, Cost would have an importance
@@ -130,32 +123,25 @@ $$ A\mathbf{o} =
     -3 & 3 & 3 \\
      1 & 1 & 2 \\
      3 & 1 & 2
-\end{pmatrix}
-\begin{pmatrix}
+\end{pmatrix} \begin{pmatrix}
     5 \\
     2 \\
     4
-\end{pmatrix} =
-\begin{pmatrix}
+\end{pmatrix} = \begin{pmatrix}
     -3(5) + 3(2) + 3(4) \\
      1(5) + 1(2) + 2(4) \\
      3(5) + 1(2) + 2(4)
-\end{pmatrix} =
-\begin{pmatrix}
+\end{pmatrix} = \begin{pmatrix}
     3 \\
     15 \\
     25
-\end{pmatrix}
-$$
+\end{pmatrix} $$
 
 So, given our objectives, their importances, and our evaluation of our
 options using those objectives, a Civic is probably the best option for
 us.
 
-** Analysis
-   :PROPERTIES:
-   :CUSTOM_ID: analysis
-   :END:
+* Analysis
 
 Now that we have a model of a decision, it is interesting to ask a few
 questions about the model, for example:
@@ -168,30 +154,23 @@ questions about the model, for example:
    or close to the same rating for each candidate, it doesn't really
    impact the decision.
 
-** Trade offs
-   :PROPERTIES:
-   :CUSTOM_ID: trade-offs
-   :END:
+* Trade offs
 
 Referring back to our car example, how can we try and understand what we
 are trading if we chose the Maserati over the Civic?
 
-Let's define $ \mathbf{t}(i,j) = \mathbf{a_i} - \mathbf{a_j} $ to be the
-trades made if alternative $ i $ is selected over alternative $ j $. Any
-negative value in $ \mathbf{t} $ represents a sacrificed objective in
+Let's define $\mathbf{t}(i,j) = \mathbf{a_i} - \mathbf{a_j}$ to be the
+trades made if alternative $i$ is selected over alternative $j$. Any
+negative value in $\mathbf{t}$ represents a sacrificed objective in
 the trade, and any positive value represents something gained. So, if
 the 1st element is negative and the last two are positive, we've
 sacrificed on our first objective for gains on our second and third.
 
-Remember that $ \mathbf{a\_1} =
-\begin{pmatrix} -3 & 3 & 3 \end{pmatrix}
-$ for the Maserati and $ \mathbf{a\_3} =
-\begin{pmatrix} 3 & 1 & 2 \end{pmatrix}
-$ for the Civic.
+Remember that $\mathbf{a\_1} = \begin{pmatrix} -3 & 3 & 3 \end{pmatrix}$ for the Maserati
+and $\mathbf{a\_3} = \begin{pmatrix} 3 & 1 & 2 \end{pmatrix}$ for the Civic.
 
-$ \mathbf{t}(1,3) = \mathbf{a\_1} - \mathbf{a\_3} =
-\begin{pmatrix} -6 & 1 & 1 \end{pmatrix}
-$ So, if we were to choose the Maserati over the Civic, we would be
+$\mathbf{t}(1,3) = \mathbf{a\_1} - \mathbf{a\_3} = \begin{pmatrix} -6 & 1 & 1 \end{pmatrix}$
+So, if we were to choose the Maserati over the Civic, we would be
 sacrificing money (first objective) to gain comfort and style (second
 and third objectives). But, we aren't willing to make this trade; we've
 demonstrated that in the previous example. Let us investigate the trade
@@ -203,41 +182,38 @@ by the associated weight.
 
 Remember
 
-$$ \mathbf{o} =
-\begin{pmatrix}
+$$ \mathbf{o} = \begin{pmatrix}
     5 \\
     2 \\
     4
 \end{pmatrix} $$
 
-In this example, $ gains = 1(2) + 1(4) = 6 $ and $ losses = 6(5) = 30 $.
-We can see this is not a valid trade because $ 6 - 30 = -24 $ is much
+In this example, $\text{gains} = 1(2) + 1(4) = 6$ and $\text{losses} = 6(5) = 30$.
+We can see this is not a valid trade because $6 - 30 = -24$ is much
 less than zero! If we were to go the other way (what do we trade if we
 chose the Civic over the Maserati), all the signs would reverse, and the
 trade would be a good trade.
 
 Since gains are positive and losses are negative in the vector we get by
 subtracting alternatives, we can express the validity of a choice of
-alternative $i$ over alternative $j$ more simply with the statement: $
-\sum_{k=0}^{n} \mathbf{t}(i,j)_k w_k \gt 0 $
+alternative $i$ over alternative $j$ more simply with the statement:
+$\sum_{k=0}^{n} \mathbf{t}(i,j)_k w_k \gt 0$
 
-Check: $ \sum_{k=0}^{3} \mathbf{t}(1,3)_k w_k = -6(5) + 1(2) + 1(4) =
--24 $
+Check: $\sum_{k=0}^{3} \mathbf{t}(1,3)_k w_k = -6(5) + 1(2) + 1(4) = -24$
 
 To understand what adjustments in objective importance might be needed
 to make the Maserati a better choice, we can try adjusting weights and
 recalculating Or, we can try using a bit of linear programming.
 
-We are attempting to satisfy $ -6w_1 + 1w_2 + 1w_3 \gt 0 $ under the
-constraint $ 0 \ge w_1, w_2, w_3 \ge 5 $ (from our rating scale). A good
+We are attempting to satisfy $-6w_1 + 1w_2 + 1w_3 \gt 0$ under the
+constraint $0 \ge w_1, w_2, w_3 \ge 5$ (from our rating scale). A good
 solver can give you results in this region. To simplify the solution,
 lets say we feel very strongly about the importance of cost, we don't
 plan on assigning any less importance to that, but a good salesman may
 be able to convince us that our comfort or style is more important than
 we think at the moment.
 
-This leaves us with $ -30 +1w_2 + 1w_3 \gt 0 $ bounded by $ 0 \ge w_2,
-w_3 \ge 5 $
+This leaves us with $-30 +1w_2 + 1w_3 \gt 0 $ bounded by $ 0 \ge w_2, w_3 \ge 5$
 
 Making a plot of this region, we can see that there exit no feasible
 solutions, so, we can tell that it is not possible for us to choose to
@@ -248,7 +224,8 @@ the orange region is the region of weights for Comfort and Style that
 would make the Maserati reasonable for us.
 
 #+CAPTION: plot of feasible region
-[[/img/decision_matrix/not_feasible.png]]
+#+ATTR_HTML: :class light-invert
+[[../static/decision_matrix/not_feasible.png]]
 
 If we decided to become flexible on cost and make comfort extremely
 important (weight of 5), then the region would look like this (where the
@@ -257,27 +234,22 @@ of cost is along the y-axis and the importance of style is along the
 x-axis)
 
 #+CAPTION: plot of feasible region
-[[/img/decision_matrix/feasible.png]]
+#+ATTR_HTML: :class light-invert
+[[../static/decision_matrix/feasible.png]]
 
 This analysis could continue and could be done in more dimensions
 analytically, but I believe I have demonstrated the methodology I've
 found to be interesting (maybe even useful?). I may explain in detail
 how I choose to use some of these ideas in WhichOne in a future post.
 
-**** Other ideas:
-     :PROPERTIES:
-     :CUSTOM_ID: other-ideas
-     :END:
+** Other ideas:
 
 1. Determine analytically what weights to assign so that an alternative
    beats another (instead of just guessing).
 2. Find a way to represent all the trades that exist in a decision with
    a single structure.
 
-** Objective Impact
-   :PROPERTIES:
-   :CUSTOM_ID: objective-impact
-   :END:
+* Objective Impact
 
 Say I give you
 
@@ -319,7 +291,7 @@ $$ \mathbf{o_k} = \begin{pmatrix}
 be the vector containing the weight of the kth objective, in the
 appropriate space, with all other weights set to zero.
 
-I've decided to call $ A\mathbf{o}_k $ the impact vector for objective
+I've decided to call $A\mathbf{o}_k$ the impact vector for objective
 $k$ because the vector represents how the objective $k$ changes
 alternatives scores in this decision.
 
@@ -356,10 +328,9 @@ $$ A \begin{pmatrix}
     -9
 \end{pmatrix} $$
 
-Now, let the impact of the kth objective $ Impact(k) =
-PopulationVariance( A\mathbf{o\_k} ) $, so in this example $ Impact(1) =
-0 $, $ Impact(2) = \frac{32}{9} \approx 3.5556 $ $ Impact(3) =
-\frac{488}{9} \approx 54.222 $
+Now, let the impact of the kth objective $Impact(k) = PopulationVariance( A\mathbf{o\_k} )$,
+so in this example $Impact(1) = 0$, $Impact(2) = \frac{32}{9} \approx 3.5556$
+$Impact(3) = \frac{488}{9} \approx 54.222$
 
 These results seem to be a good indicator of how much impact each
 objective has on the decision. However, it may be better to use the
@@ -373,10 +344,7 @@ vectors, not at how these vectors pull your choices one way or another
 (doesn't factor in trade offs to determine influence). Again, this is
 more of a theoretical question, practically variance/s.d. performs well.
 
-**** WARNING: What follows is not well structured or explained.
-     :PROPERTIES:
-     :CUSTOM_ID: warning-what-follows-is-not-well-structured-or-explained.
-     :END:
+** WARNING: What follows is not well structured or explained.
 
 Here is another idea for understanding trade offs and objective impact
 I've been toying with.
@@ -414,10 +382,11 @@ $$ \begin{pmatrix}
     3
 \end{pmatrix} $$
 
-Let's plot those along with the line $ y = x $
+Let's plot those along with the line $y = x$
 
 #+CAPTION: plot of impact vectors
-[[/img/decision_matrix/impact.png]]
+#+ATTR_HTML: :class light-invert
+[[../static/decision_matrix/impact.png]]
 
 This plot may be a bit difficult to wrap your head around (it is for
 me), but let's walk through it. Our x and y axis represent alternative
@@ -431,31 +400,29 @@ $$ \begin{pmatrix}
     0
 \end{pmatrix} $$
 
-This objective clearly favors the first alternative (it adds 15 to $ a_1
-$'s score, and 0 to $ a_2 $'s score. In this case that would be
-something that very much favors the first alternative. Plotted, we would
-get this.
+This objective clearly favors the first alternative (it adds 15 to $a_1$'s
+score, and 0 to $a_2$'s score. In this case that would be something
+that very much favors the first alternative. Plotted, we would get
+this.
 
 #+CAPTION: wow plot
-[[/img/decision_matrix/wow.png]]
+#+ATTR_HTML: :class light-invert
+[[../static/decision_matrix/wow.png]]
 
 So, we can say, in the 2D case, that the closer to the positive x-axis a
-vector is ($x \gt y$ ), the more it favors the first alternative. The
-closer to the positive y-axis the vector is ( $ x \lt y $ ), the more it
+vector is ($x \gt y$), the more it favors the first alternative. The
+closer to the positive y-axis the vector is ($x \lt y$), the more it
 favors the second alternative. So, looking back at our example for this
 section, the big blue vector has no impact.
 
 It may be possible to define an importance function using these vectors
-and their distance from the neutral line ( $ x_1 = x_2 = \cdots = x_n $
-) for n alternatives, but I haven't yet explored this entirely. If I do,
-I will post again probably explaining the process. Practically, variance
-works well enough. But, I think this is a really cool, fun way to think
-about objectives.
+and their distance from the neutral line ($x_1 = x_2 = \cdots = x_n$)
+for n alternatives, but I haven't yet explored this entirely. If I do,
+I will post again probably explaining the process. Practically,
+variance works well enough. But, I think this is a really cool, fun
+way to think about objectives.
 
-**** Maserati and Camry example
-     :PROPERTIES:
-     :CUSTOM_ID: maserati-and-camry-example
-     :END:
+** Maserati and Camry example
 
 Let's do this with the Maserati and Camry again. Same objectives.
 
@@ -478,12 +445,10 @@ For Cost (in blue):
 
 $$ A
 \begin{pmatrix} 5 \\ 0 \\ 0 \end{pmatrix}
-=
-\begin{pmatrix}
+= \begin{pmatrix}
     -15 \\
     15
-\end{pmatrix}
-$
+\end{pmatrix} $$
 
 For Comfort (in orange):
 
@@ -504,7 +469,8 @@ $$ A \begin{pmatrix} 0 \\ 0 \\ 4 \end{pmatrix} =
 Here is a plot:
 
 #+CAPTION: maserati camry plot
-[[/img/decision_matrix/maserati_camry.png]]
+#+ATTR_HTML: :class light-invert
+[[../static/decision_matrix/maserati_camry.png]]
 
 In terms of impact, the cost vector is perpendicular to the neutral
 line. This is as far from neutral as possible! Cost clearly has a large
@@ -512,10 +478,7 @@ amount of impact. Understanding the "which direction does this objective
 pull my decision" thing is quite a bit harder here and I can only kind
 of see it. But, this train of though may still hold some potential.
 
-**** Other ideas:
-     :PROPERTIES:
-     :CUSTOM_ID: other-ideas-1
-     :END:
+** Other ideas:
 
 1. Finish determining impact using distance of impact vector to neutral
    line.
