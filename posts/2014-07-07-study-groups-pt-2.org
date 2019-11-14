@@ -1,3 +1,6 @@
+#+TITLE: Study Groups Pt. 2
+#+DATE: <2014-06-01>
+
 This post is intended to be a continuation of the previous post
 discussing study groups. You can probably find that post pretty easily
 on this site. If you haven't seen it, go back and read it!
@@ -7,10 +10,7 @@ little article. I don't intend to go much farther with this project, but
 discussion about it could be quite interesting. And of course if you
 find errors, let me know!
 
-** Simulation
-   :PROPERTIES:
-   :CUSTOM_ID: simulation
-   :END:
+* Simulation
 
 I've expanded the model a bit for this one. Here is what happens:
 
@@ -57,10 +57,7 @@ groups, that can get kind of interesting.
 Because there is some element of randomness, I will run many trials of
 the simulation to get results.
 
-** Criticism of the model
-   :PROPERTIES:
-   :CUSTOM_ID: criticism-of-the-model
-   :END:
+* Criticism of the model
 
 There are a couple obvious problems with this model.
 
@@ -93,10 +90,7 @@ There are a couple obvious problems with this model.
 So, the biggest flaw we will have to overcome is (1), but, the specific
 kind of experiment I plan to run lessens the impact of this problem.
 
-** The Experiment
-   :PROPERTIES:
-   :CUSTOM_ID: the-experiment
-   :END:
+* The Experiment
 
 I intend to try and figure out if group splitting or individual
 selflessness will do a better job at keeping groups close to optimal
@@ -115,17 +109,14 @@ This particular image is shows the percentage of groups at optimal size
 for various values of selflessness and group split chance.
 
 #+CAPTION: joiners=5, max=50, optimal
-[[/img/study_groups/2/5_optimal.png]]
+[[../static/study_groups/2/5_optimal.png]]
 
 All of the images from here on out are essentially the same, although
 they grayness may have a different meaning, I'll be careful to explain
 what you are looking at in the file names and in this document, but I'm
 not going to go back all the images, sorry!
 
-** Results
-   :PROPERTIES:
-   :CUSTOM_ID: results
-   :END:
+* Results
 
 First test we are going to look at.
 
@@ -140,36 +131,24 @@ First test we are going to look at.
 Here are the images for all the results:
 
 **** Percentage of groups at optimal size
-     :PROPERTIES:
-     :CUSTOM_ID: percentage-of-groups-at-optimal-size
-     :END:
 
 #+CAPTION: joiners=5, at optimal
-[[/img/study_groups/2/5_optimal.png]]
+[[../static/study_groups/2/5_optimal.png]]
 
 **** Percentage of groups above optimal size
-     :PROPERTIES:
-     :CUSTOM_ID: percentage-of-groups-above-optimal-size
-     :END:
 
 #+CAPTION: joiners=5, above optimal
-[[/img/study_groups/2/5_above_optimal.png]]
+[[../static/study_groups/2/5_above_optimal.png]]
 
 **** Percentage of groups below optimal size
-     :PROPERTIES:
-     :CUSTOM_ID: percentage-of-groups-below-optimal-size
-     :END:
 
 #+CAPTION: joiners=5, below optimal
-[[/img/study_groups/2/5_below_optimal.png]]
+[[../static/study_groups/2/5_below_optimal.png]]
 
 **** Average fitness of groups
-     :PROPERTIES:
-     :CUSTOM_ID: average-fitness-of-groups
-     :END:
 
 #+CAPTION: joiners=5, average fitness
-[[/img/study_groups/2/5_avg_fit.png]]
+[[../static/study_groups/2/5_avg_fit.png]]
 
 So, what did we learn here? Well, it looks like the best way to increase
 chances of getting groups to their optimal size is having a moderate
@@ -213,10 +192,10 @@ results.
   trials=1000
 #+END_EXAMPLE
 
-[[/img/study_groups/2/10_optimal.png][at optimal]]
-[[/img/study_groups/2/10_above_optimal.png][above optimal]]
-[[/img/study_groups/2/10_below_optimal.png][below optimal]]
-[[/img/study_groups/2/10_avg_fit.png][average fitness]]
+[[../static/study_groups/2/10_optimal.png][at optimal]]
+[[../static/study_groups/2/10_above_optimal.png][above optimal]]
+[[../static/study_groups/2/10_below_optimal.png][below optimal]]
+[[../static/study_groups/2/10_avg_fit.png][average fitness]]
 
 #+BEGIN_EXAMPLE
   member_contrib=1.000000
@@ -226,10 +205,10 @@ results.
   trials=1000
 #+END_EXAMPLE
 
-[[/img/study_groups/2/15_optimal.png][at optimal]]
-[[/img/study_groups/2/15_above_optimal.png][above optimal]]
-[[/img/study_groups/2/15_below_optimal.png][below optimal]]
-[[/img/study_groups/2/15_avg_fit.png][average fitness]]
+[[../static/study_groups/2/15_optimal.png][at optimal]]
+[[../static/study_groups/2/15_above_optimal.png][above optimal]]
+[[../static/study_groups/2/15_below_optimal.png][below optimal]]
+[[../static/study_groups/2/15_avg_fit.png][average fitness]]
 
 #+BEGIN_EXAMPLE
   member_contrib=1.000000
@@ -239,18 +218,15 @@ results.
   trials=1000
 #+END_EXAMPLE
 
-[[/img/study_groups/2/20_optimal.png][at optimal]]
-[[/img/study_groups/2/20_above_optimal.png][above optimal]]
-[[/img/study_groups/2/20_below_optimal.png][below optimal]]
-[[/img/study_groups/2/20_avg_fit.png][average fitness]]
+[[../static/study_groups/2/20_optimal.png][at optimal]]
+[[../static/study_groups/2/20_above_optimal.png][above optimal]]
+[[../static/study_groups/2/20_below_optimal.png][below optimal]]
+[[../static/study_groups/2/20_avg_fit.png][average fitness]]
 
 As you can see, if you looked at these images, the results are fairly
 consistent across my tests.
 
-** Conclusion
-   :PROPERTIES:
-   :CUSTOM_ID: conclusion
-   :END:
+* Conclusion
 
 It would seem that selflessness doesn't much help, but group splitting
 does. If you are shooting to find the optimal group size, have a
@@ -274,10 +250,7 @@ quite a bit more than choosing to split later.
 Hopefully this was interesting to you! If you've seen anything I haven't
 please tell me!!
 
-** A bit about implementation
-   :PROPERTIES:
-   :CUSTOM_ID: a-bit-about-implementation
-   :END:
+* A bit about implementation
 
 I wrote this code a couple of different ways, but eventually settled on
 Haskell as the language for the simulation. I also chose to leave
@@ -289,6 +262,5 @@ multiple instances of the simulation (which is single threaded), and
 collect the results. The, finally, I used R to spit out the rather
 unpolished graphics I used.
 
-The code is on github, here is a
-[[https://github.com/dpzmick/study_groups/tree/8731b5285997c88f0b3e889e57d60cbd9dbab3f3][link]]
-to the commit used to write this post.
+The code is on github, here is a [[https://github.com/dpzmick/study_groups/tree/8731b5285997c88f0b3e889e57d60cbd9dbab3f3][link]] to the commit used to write this
+post.
