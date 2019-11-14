@@ -1,5 +1,5 @@
 #+TITLE: Understaning Pin for C and C++ Developers
-#+DATE: 2019-05-25
+#+DATE: <2019-05-25>
 
 My initial impression of [[https://doc.rust-lang.org/std/pin/][Pin]] was that it said "hey there's something
 sitting at this memory location. Feel free to use it, even though, in

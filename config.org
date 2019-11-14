@@ -7,73 +7,132 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
 
 # silent results else the adding of results confuses the publisher
 #+BEGIN_SRC emacs-lisp :noweb no-export :var fname=(buffer-file-name) :results silent
-  (require 'ox-publish)
-  (require 'ox-rss)
+    (require 'ox-publish)
+    (require 'ox-rss)
 
-  ;; Don't do much with the theme. We'll generate the entire theme using
-  ;; css from our emacs color scheme. This tells htmlize to use css
-  ;; classes to annotate the stuff it would have generated colors for.
-  (setq org-html-htmlize-output-type 'css)
-  (setq org-export-with-sub-superscripts nil)
+    ;; cache invalidation doesn't seem to be working properly
+    (setq org-confirm-babel-evaluate nil)
+    (org-publish-write-cache-file t) ;; free the on disk cache too
+    (org-publish-initialize-cache "dpzmick")
+    (org-publish-initialize-cache "dpzmick-notes")
+    (org-publish-initialize-cache "dpzmick-static")
 
-  (defun create-preamble (options)
-    (concat "<div id='#preamble'><h1><a href='/'>dpzmick.com</a></h1></div>"
-            "<div id='bulb' class='need-js' style='display: none'><a href='#/' onclick='switchModes()'><img class='light-invert' src='/static/icons/bulb.png' /></a></div>"))
+    ;; Don't do much with the theme. We'll generate the entire theme using
+    ;; css from our emacs color scheme. This tells htmlize to use css
+    ;; classes to annotate the stuff it would have generated colors for.
+    (setq org-html-htmlize-output-type 'css)
+    (setq org-export-with-sub-superscripts nil)
 
-  (defun create-postamble (options)
-    (concat
-     "<div id='#postamble'><a href='/'>home</a>   "
-     "<a href=https://gitlab.com/dpzmick/dpzmick.com/blob/master/"
-     (file-relative-name
-      (plist-get options :input-file)
-      (file-name-directory fname))
-     ">view-source</a></div>"))
+    (setq header
+          (concat
+           "<script type='text/javascript' src='/static/scripts.js'></script>"
+           "<link rel='stylesheet' type='text/css' href='/static/base.css' />"
+           "<link rel='stylesheet' type='text/css' id='theme-css' href='/static/base16-tomorrow-night.css' />"))
 
-  (setq header
-        (concat
-         "<script type='text/javascript' src='/static/scripts.js'></script>"
-         "<link rel='stylesheet' type='text/css' href='/static/base.css' />"
-         "<link rel='stylesheet' type='text/css' id='theme-css' href='/static/base16-tomorrow-night.css' />"))
+    (defun create-preamble (options)
+      (concat
+       "<div id='#preamble'><h1><a href='/'>dpzmick.com</a></h1></div>"
+       "<div id='bulb' class='need-js' style='display: none'><a href='#/' onclick='switchModes()'><img class='light-invert' src='/static/icons/bulb.png' /></a></div>"))
 
-  (setq org-publish-project-alist
-        `(
-          ("dpzmick-notes"
-           :base-directory ,(file-name-directory fname)
-           :publishing-directory ,(concat (file-name-directory fname) "_site")
-           :base-extension "org"
-           :recursive t
-           :publishing-function org-html-publish-to-html
-           :with-author nil
-           :section-numbers nil
-           :with-toc nil
-           :html-validation-link nil
-           :html-head-include-scripts nil
-           :html-head-include-default-style nil
-           :headline-levels 4
-           :auto-sitemap nil
-           ;; add some custom HTML
-           :html-head-extra ,header
-           :html-preamble  ,'create-preamble
-           :html-postamble ,'create-postamble)
+    (defun create-postamble (options)
+      (concat
+       "<div id='#postamble'><a href='/'>home</a>   "
+       "<a href=https://gitlab.com/dpzmick/dpzmick.com/blob/master/"
+       (plist-get options :input-file)
+       ">view-source</a></div>"))
 
-          ("dpzmick-static"
-           :base-directory ,(concat (file-name-directory fname) "static")
-           :publishing-directory ,(concat
-                                   (file-name-as-directory (concat
-                                                            (file-name-directory fname)
-                                                            "_site"))
-                                   "static")
-           :base-extension any
-           :recursive t
-           :publishing-function org-publish-attachment)
+    (defun org-blog-sitemap-format-entry (entry _style project)
+      (when (s-starts-with-p "posts/" entry)
+        (with-temp-buffer
+          (insert
+           (format "* %s - %s"
+                   (format-time-string "%h %d, %Y" (org-publish-find-date entry project))
+                   (org-publish-find-title entry project)))
+           (org-set-property "PUBDATE"
+                             (format-time-string "%Y-%m-%d"
+                                                 (org-publish-find-date entry project)))
+           (org-set-property "RSS_PERMALINK"
+                             (concat "/posts/" ;; cheating on path
+                                     (file-name-base entry)
+                                     ".html"))
+          (buffer-string))))
 
-          ("dpzmick" :components ("dpzmick-notes"
-                                  "dpzmick-static"))))
+  (defun org-blog-sitemap-function (title list)
+    "Return sitemap using TITLE and LIST returned by `org-blog-sitemap-format-entry'."
+    (concat "#+TITLE: " title "\n\n"
+            (mapconcat (lambda (li)
+                         (format "%s" (car li)))
+                       (seq-filter #'car (cdr list))
+                       "\n")))
+
+    (setq org-publish-project-alist
+          `(
+            ("dpzmick-notes"
+             :author "David Zmick"
+             :email "dpzmick@gmail.com"
+             :base-directory ,(file-name-directory fname)
+             :publishing-directory ,(concat (file-name-directory fname) "_site")
+             :base-extension "org"
+             :recursive t
+             :publishing-function org-html-publish-to-html
+             :with-author nil
+             :section-numbers nil
+             :with-toc nil
+             :with-date t
+             :headline-levels 4
+             :html-validation-link nil
+             :html-head-include-scripts nil
+             :html-head-include-default-style nil
+             :html-doctype "html5"
+             :html-html5-fancy t
+             :htmlized-source t
+
+             ;; add some custom HTML
+             :html-head-extra ,header
+             :html-preamble  ,'create-preamble
+             :html-postamble ,'create-postamble
+
+             ;; sitemap for rss
+             :auto-sitemap t
+             :sitemap-filename "rss.org"
+             :sitemap-title "dpzmick.com blog posts"
+             :sitemap-style list
+             :sitemap-sort-files anti-chronologically
+             :sitemap-format-entry org-blog-sitemap-format-entry
+             :sitemap-function org-blog-sitemap-function)
+
+            ("dpzmick-rss"
+             :author "David Zmick"
+             :email "dpzmick@gmail.com"
+             :base-directory ,(file-name-directory fname)
+             :publishing-directory ,(concat (file-name-directory fname) "_site")
+             :publishing-function org-rss-publish-to-rss
+             :recursive nil
+             :base-extension "org"
+             :with-author t
+             :rss-extension "xml"
+             :section-numbers nil
+             :with-toc nil
+             :html-link-home "http://dpzmick.com/"
+             :html-link-use-abs-url t
+             :include ("rss.org")
+             :exclude ".*")
+
+            ("dpzmick-static"
+             :base-directory ,(concat (file-name-directory fname) "static")
+             :publishing-directory ,(concat
+                                     (file-name-as-directory (concat
+                                                              (file-name-directory fname)
+                                                              "_site"))
+                                     "static")
+             :base-extension any
+             :recursive t
+             :publishing-function org-publish-attachment)
+
+            ("dpzmick" :components ("dpzmick-notes"
+                                    "dpzmick-rss"
+                                    "dpzmick-static"))))
 
 
-  (org-publish "dpzmick" t)
+    (org-publish "dpzmick" t)
 #+END_SRC
-
-* FIXME
-** TODO RSS feed
-** TODO footnotes?

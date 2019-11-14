@@ -1,5 +1,6 @@
 #+TITLE: "Garbage Collection" for Rust Arc Pointers
-#+DATE: 2017-01-23
+#+AUTHOR: David Zmick
+#+DATE: <2017-01-23>
 
 If you don't know anything at all about realtime audio programming, you might want to read the first post in this pseudo-series, [[./2016-12-17-audio-basics.org][Audio Programming 101]], or watch [[https://www.youtube.com/watch?v=SJXGSJ6Zoro][this talk]] from the Audio Developers Conference to get a little bit of background.
 

@@ -1,5 +1,6 @@
 #+TITLE: Rust Image Processing DSL
-#+DATE: 2016-08-11
+#+AUTHOR: David Zmick
+#+DATE: <2016-08-11>
 
 [[https://github.com/dpzmick/rust_img_dsl][This Project]] is essentially an attempt to recreate some of the [[http://halide-lang.org/][Halide]] project in Rust as a means of learning that Rust language.
 Halide is a really clever C++ library that allows programmers to define image processing algorithms in domain specific language which are compiled according to some sort of execution strategy.
