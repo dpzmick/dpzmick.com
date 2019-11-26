@@ -1,0 +1,7 @@
+#+TITLE: Rust for C/C++ developers
+#+DATE: <2019-11-26>
+
+List of c-induced misconceptions I had to clarify when learning rust:
+
+- move is memcpy (no move ctor): [[file:./2019-05-25-pin-rs-cpp.org][pin misconceptions]]
+- type-punning is (sort of) okay: [[https://www.reddit.com/r/rust/comments/e24ss9/typepunning_on_mut_u8/][reddit post]]

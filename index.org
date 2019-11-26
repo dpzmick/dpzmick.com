@@ -13,9 +13,9 @@ Email: dpzmick gmail
 - Building a Homelab
 - Undergraduate senior thesis - [[./static/ugrad-thesis.pdf][Automatic parallelization of recursive functions in clojure]]
 
-* Blog Posts
+* Blog Posts @@html:<span id=rss><a href="/rss.xml"><img src="/static/rss.png"></a></span>@@
   
-# apparnetly this is just the sitemap function, implemented badly
+# apparently this is just the sitemap function, implemented badly
 #+BEGIN_SRC emacs-lisp :exports results :results list
   (defun get-props (filename)
     (with-temp-buffer
@@ -56,8 +56,12 @@ Email: dpzmick gmail
 #+END_SRC
 
 #+RESULTS:
-- May 25, 2019 - [[file:/home/dpzmick/programming/new-website/posts/pin-rs-cpp.org][Understaning Pin for C and C++ Developers]]
+- May 25, 2019 - [[file:/home/dpzmick/programming/new-website/posts/2019-05-25-pin-rs-cpp.org][Understaning Pin (for C and C++ Developers)]]
 - May 25, 2017 - [[file:/home/dpzmick/programming/new-website/posts/2017-05-25-outsmarting-the-compiler.org][Outsmarting the Compiler]]
 - Jan 23, 2017 - [[file:/home/dpzmick/programming/new-website/posts/2017-01-23-rust-arc-gc-realtime.org]["Garbage Collection" for Rust Arc Pointers]]
 - Dec 17, 2016 - [[file:/home/dpzmick/programming/new-website/posts/2016-12-17-audio-basics.org][Audio programming 101]]
 - Aug 11, 2016 - [[file:/home/dpzmick/programming/new-website/posts/2016-08-11-rust-jit-image-processing.org][Rust Image Processing DSL]]
+- Jun 09, 2015 - [[file:/home/dpzmick/programming/new-website/posts/2015-06-09-ants.org][Ants]]
+- Jun 01, 2014 - [[file:/home/dpzmick/programming/new-website/posts/2014-07-07-study-groups-pt-2.org][Study Groups Pt. 2]]
+- May 31, 2014 - [[file:/home/dpzmick/programming/new-website/posts/2014-05-31-study-groups-pt-1.org][Study Groups Pt. 1]]
+- Jan 17, 2014 - [[file:/home/dpzmick/programming/new-website/posts/2014-01-17-decision-matrix.org][Decision Matrix]]

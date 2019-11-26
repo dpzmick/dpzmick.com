@@ -1,22 +1,22 @@
-#+TITLE: Understaning Pin for C and C++ Developers
-#+DATE: <2019-05-25>
+#+TITLE: Understaning Pin (for C and C++ Developers)
+#+DATE: <2019-11-15>
 
-My initial impression of [[https://doc.rust-lang.org/std/pin/][Pin]] was that it said "hey there's something
-sitting at this memory location. Feel free to use it, even though, in
-this context, the compiler can't lexically prove that it is actually
-still there." My understanding of =Pin= was roughly that it was a
-backdoor through the lifetime system.
+[[https://doc.rust-lang.org/std/pin/][Pin]] is pretty important for Rust's recently-released =async.await=
+features. I read the docs. I didn't get it[fn:1]. This exercise is what it
+took for me to understand why =Pin= is important.
+
+[fn:1] The docs are great, but something just wasn't clicking for me.
+
 
 Opening up the documentation, the page starts with a discussion about
 =Unpin=. =Unpin= is weird. Basically, =Unpin= says "yeah I know this
 is pinned but you are free to ignore that." My gut reaction to =Unpin=
 was "why would you need this at all?" Doesn't this defeat the purpose
-of =Pin=?  Why is everything =Unpin= by default???
+of =Pin=?  Why is everything =Unpin= by default??
 
-Continuing on, hoping for some redemption further down the page,
-there's a list of rules which must be adhered to in the =unsafe=
-constructor for =Pin=. I found this constraint for types which are
-=!Unpin= to be paricularly mysterious:
+Continuing on, there's a list of rules which must be adhered to in the
+=unsafe= constructor for =Pin=. I found this constraint for types
+which are =!Unpin= to be particularly mysterious:
 
 #+begin_quote
 It must not be possible to obtain a =&mut P::Target= and then move out
@@ -24,11 +24,7 @@ of that reference (using, for example =mem::swap=).
 #+end_quote
 
 Other guides to =Pin= also noted that calling =mem::replace=, which
-also takes a mutable mutable reference, should not be allowed.
-
-There's a number of fantastic examples in the rust documentation, but
-I still was missing something. The rest of this post will be a
-walkthrough of where I went wrong.
+also takes a mutable reference, cannot not be allowed.
 
 Let's look at this again:
 
@@ -40,13 +36,13 @@ of that reference (using, for example =mem::swap=).
 Clearly moving is significant here, what does that mean exactly, and
 why is this such a big deal?
 
-*** C++
+* C++
 
-I'm more familar with C++ and my familiarty is probably where my
+I'm more familiar with C++ and my familiarity is probably where my
 misunderstandings are coming from. Let's start by understanding what
 it means to move something in C++.
 
-Consider the following struct:
+Consider the following =struct=:
 
 #+name: ThingDef
 #+begin_src cpp
@@ -81,7 +77,7 @@ Consider the following struct:
 C++ says that a move ctor must leave the object moved from in an
 undefined, *but valid* state.
 
-#+begin_src cpp :noweb yes :includes <cstdint> <cstdio> <algorithm>
+#+begin_src cpp :noweb strip-export :includes <cstdint> <cstdio> <algorithm>
   <<ThingDef>>
 
   int main() {
@@ -96,10 +92,12 @@ undefined, *but valid* state.
 #+RESULTS:
 : ref 0
 
-Next, consider this (probably wrong in some subtle way) implementation
-of =swap=, and it's usage:
+Next, consider this[fn:2] implementation of =swap= and it's usage:
 
-#+begin_src cpp :noweb yes :includes <cstdint> <cstdio> <algorithm>
+[fn:2] probably incorrect. there's no such thing as correct C++ code.
+
+
+#+begin_src cpp :noweb strip-export :includes <cstdint> <cstdio> <algorithm>
   <<ThingDef>>
 
   template <typename T>
@@ -146,7 +144,7 @@ Let's consider one last struct.
 #+end_src
 
 =head= and =tail= both point to elements of entries.  C++ will
-generate a default move contructor for us, but the default is just a
+generate a default move constructor for us, but the default is just a
 =memcpy=. If it runs, we'll end up with pointers that point into the
 wrong array. We must write a custom move constructor.
 
@@ -162,10 +160,9 @@ wrong array. We must write a custom move constructor.
 #+end_src
 
 So, in C++, a =move= is just another user defined operation that you
-can take advantage of in some special places, perhaps to make code
-more efficient or provide some useful semantic for your users.
+can take advantage of in some special places.
 
-*** Rust
+* Rust
 
 Let's do the same exercises again in Rust, starting with the =Thing=
 struct.
@@ -211,12 +208,11 @@ error[E0505]: cannot move out of `a` because it is borrowed
 
 Rust is telling us that it knows we moved the value, and, since we
 moved it, we can't use it anymore. What does this mean though? What is
-actually goig on in memory.
+actually going?
 
-Let's find out with some unsafe and undefined-behavior inducing Rust.
-Rhe first time I tried something like this, I wasn't sure what to
-expect, so I've come up with a simpler example that's hopefully a bit
-more clear. See if you can figure out what you think this will print:
+Let's try to find out with some unsafe and undefined-behavior inducing
+Rust. The first time I tried something like this, I wasn't sure what
+to expect, but hopefully this example is clear.
 
 #+begin_src rust :tangle ex2.rs
   fn main() {
@@ -229,29 +225,28 @@ more clear. See if you can figure out what you think this will print:
 #+end_src
 
 This prints "1" because the compiler reused the stack space used by
-the object named "a" to store the object named "b."  There was no
+the object named =a= to store the object named =b=. There was no
 "empty valid husk" left behind.
-
-The operation that Rust used to do this "move" was just =memcpy=.
 
 This behavior is very different from the C++ move. The Rust compiler
 knows about the move and can take advantage of the move to save some
 stack space. Without writing unsafe code, there is no way you'd ever
-be able to access fields from "a" again, so how the compiler wants to
+be able to access fields from =a= again, so how the compiler wants to
 use that space occupied by =a= after the move is entirely the
-compiler's decsion.
+compiler's decision.
 
 Rule number 1 of Rust move: The compiler knows you moved. The compiler
 can use this to optimize.
 
 The next C++ example was a =swap=. In C++, =swap= calls some move
-constructors to shuffle the data around. In our C++ example, these
-=move= constructors where just memcpy.
+constructors to shuffle the data around. In the C++ swap example,
+these (implicit) =move= constructors where just =memcpy=.
 
 Swap in Rust isn't as straightforward as the C++ version. In the C++
 version, we just call the user defined move constructor to do all of
-the hard work.  In Rust, we don't have this user defined function to
+the hard work. In Rust, we don't have this user defined function to
 call, so we'll have to actually be explicit about what swap does.
+This version of swap is adapted from Rust's standard library:
 
 #+begin_src rust :tangle ex3.rs
   fn swap<T>(a: &mut T, b: &mut T) {
@@ -264,7 +259,7 @@ call, so we'll have to actually be explicit about what swap does.
   }
 #+end_src
 
-Roaming into undefined-behavior territory to poke around:
+Roaming again into undefined-behavior territory:
 
 #+begin_src rust :tangle ex3.rs
   fn main() {
@@ -281,16 +276,21 @@ Roaming into undefined-behavior territory to poke around:
 
 This example is nice because it does what you'd expect, but it
 highlights something critical about Rust's move semantics: =move= is
-_always_ the same as =memcpy=. It couldn't be anything other than a
-=memcpy=, since Rust doesn't define anything else on the struct that
-would let us define any other kind of operation.
+_always_ a =memcpy=. =move= in Rust couldn't be anything other than a
+=memcpy=. Rust doesn't define anything else associated with the struct
+that would let the user specify any other operation.
 
 Rule number 2: Rust move is always _just_ a =memcpy=.
 
 Now, let's think about the ring buffer. It is not even remotely
 idiomatic to write anything like the C++ version of the ring-buffer in
-Rust, but let's do it anyway. I'm also going to pretend that [[https://github.com/rust-lang/rust/issues/44580][const
+Rust[fn:3], but let's do it anyway. I'm also going to pretend that [[https://github.com/rust-lang/rust/issues/44580][const
 generics]] are finished for the sake of clarity.
+
+[fn:3] The idiomatic Rust version is better (use indicies instead of pointers).
+This isn't an indictment of Rust. The idiomatic Rust version would be
+better in C++ too.
+
 
 #+begin_src rust
   struct RingBuffer<T, const N: usize> {
@@ -300,8 +300,8 @@ generics]] are finished for the sake of clarity.
   }
 #+end_src
 
-The problem now is that we can't define a custom move contructor. If
-this struct is ever moved (including the move-by-memcpy in
+The problem now is that we can't define a custom move constructor. If
+this struct is ever moved (including the move-by-=memcpy= in
 swap/replace), the pointers stored will be point to the wrong piece of
 memory.
 
@@ -309,15 +309,14 @@ The rust solution to this is to mark your type as =!Unpin=.
 
 Once something is marked as =!Unpin=, getting a mutable reference to
 it becomes unsafe. If you get a mutable reference to a pinned type
-which does not implement =Unpin=, you are supposed to promise to never
-call anything that moves out of the type. I have thoughts on the
-actual feasibility of following these rules, but that's a topic for
-another time.
+which is =!Unpin=, you must promise to never call anything that moves
+out of the type. I have thoughts on the actual feasibility of
+following these rules, but that's a topic for another time.
 
-*** Futures/async.await
-    
+* Futures/async.await
+
 Hopefully now, we can understand why this is prerequisite for
-async/await support in Rust.
+async.await support in Rust.
 
 Consider this async function:
 #+begin_src rust
@@ -326,7 +325,7 @@ Consider this async function:
       let x = [1, 2, 3, 4];
       let y = &x[1];
       let nxt_idx= make_network_request().await;
-      
+
       // next call to poll runs the last line
       return y + x[nxt_idx];
   }
@@ -345,6 +344,6 @@ this:
   }
 #+end_src
 
-Since =y= is a reference (pointer), if we =move= (memcpy) the
+Since =y= is a reference (pointer), if we =move= (=memcpy=) the
 intermediate state, we'll be messing up our pointers. This is why
 =Pin= matters for async.

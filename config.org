@@ -12,7 +12,7 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
 
     ;; cache invalidation doesn't seem to be working properly
     (setq org-confirm-babel-evaluate nil)
-    (org-publish-write-cache-file t) ;; free the on disk cache too
+    ;; (org-publish-write-cache-file t) ;; free the on disk cache too
     (org-publish-initialize-cache "dpzmick")
     (org-publish-initialize-cache "dpzmick-notes")
     (org-publish-initialize-cache "dpzmick-static")
@@ -29,6 +29,7 @@ Started from [[https://explog.in/config.org.html][explog]] and tried to customiz
            "<link rel='stylesheet' type='text/css' href='/static/base.css' />"
            "<link rel='stylesheet' type='text/css' id='theme-css' href='/static/base16-tomorrow-night.css' />"))
 
+    ;; this looks silly
     ;; "<div id='bulb' class='need-js' style='display: none'><a href='#/' onclick='switchModes()'><img class='light-invert' src='/static/icons/bulb.png' /></a></div>"))
 
     (defun create-preamble (options)
