@@ -1,0 +1,307 @@
+#+TITLE: Homelab: VPNs, RAID Controllers, ZFS, and SFPs
+#+DATE: <2020-01-09>
+
+For the last 170 days (according to uptime on one my routers), I've
+been setting up a small homelab.
+Homelabs are kind of cool, and, the setup has been /interesting/, so
+here's a +warning+ fun story about homelabs.
+
+* Why homelab?
+
+- To learn more about networking; hands on experience is the best way to do that
+- I've been bouncing around some networking-related project ideas, I wanted switches that could collect stats
+- I wanted a VPN to access my desktop remotely
+- [[https://pi-hole.net/][Tracker-blocking DNS servers]] seemed cool
+- My RAW photo collection, note taking tools, source control, saved documents, academic paper collection (with some notes), audio sample collection, etc all live in The Cloud and nothing talks to anything else.
+  - I'm (still) looking for a better way
+- A 6+ year old SSD I had failed and I didn't notice until too late.
+  - RAID seems cool and I like blinking lights
+- Grafana dashboards of obvious metrics (cpu load, memory usage, etc) are awesome for understand how software behaves. I wanted this at home
+
+* Act 1: VPN
+
+Unfortunately, I don't have a public IP in my building, so setting up remote access had to be a little more involved than just opening a port for ssh.
+I found a tiny, passively cooled, quad-port *intel* NIC, celeron box [[https://www.amazon.com/Firewall-Gigabit-Celeron-AES-NI-Barebone/dp/B07G7H4M73][on amazon]], and figured I'd try setting up my own linux router and run my own VPN server in AWS or something.
+
+This took a bit of work.
+
+** Networking
+Before diving in, I needed to decide how to layout my network and what VPN tools to use.
+I read a ton about best practices, but this wasn't super helpful, so instead, I just started spinning up VMs and messing with VPN software and playing with my network settings.
+
+Eventually I settled on wireguard for a VPN, mostly because I never actually got OpenVPN working anywhere.
+I also spent bunch of time trying to get IPSec and layer 2 tunneling to work, but decided that I didn't really want that anyway.
+Wireguard is easy, fast, and probably secure, so I'm using that for now.
+
+The network is organized as:
+- One subnet for each "region"
+  - My apartment is on the =172.16.1.xxx= subnet (for snobs: =172.16.1.0/24=)
+  - A cloud region on the =172.16.2.xxx= subnet
+    - I wanted to be able to use cloud VMs for other services, so I found a provider that suported private networking
+  - Wireguard speaks IP, so it needs a subnet too. It got =172.16.255.xxx=
+    - Each device connected to the VPN gets an IP on this subnet
+- Use one private subdomain for each "region," excluding the VPN region (ie apartment.me.com, cloud.me.com)
+- Have a DHCP server and DNS server available in each region (the DHCP host will always be =xxx.xxx.xxx.1= and have hostname/dns name =gateway=)
+  - DNS is authoritative for its subdomain
+  - VPN region just routes DNS to the cloud region
+  - The VPN =gateway= is just the VPN server
+  - There is no DHCP for VPN subnet
+- The VPN server/cloud gateway has a public IP
+  - and a firewall that drops everything other than VPN traffic
+
+I haven't figured out ipv6 yet because I'm a bad person.
+
+** Install [[https://alpinelinux.org/][alpine linux]] on local router
+The official install guides are good and more up to date than anything I'd have to say about this.
+
+*** Setup Basic Networking
+In =/etc/network/interfaces=:
+
+#+begin_src conf
+auto eth0
+iface eth0 inet dhcp
+        hostname gateway
+
+auto eth1
+iface eth1 inet static
+        address 172.16.1.1
+        netmask 255.255.255.0
+#+end_src
+
+=eth0= is hooked to my ISP (so I get a DHCP ip), and =eth1= was hooked to a tiny TP-Link switch I had laying around.
+
+*** Firewall and NAT
+=iptables= sucks to use, but I tried this for a while.
+I never quite got =iptables= working, but I learned enough to (temporarily) sort of understand what it did.
+=shorewall= seemed cool, but the rules I saw it generating were way too complicated, even for tiny simple things.
+
+Eventually I decided to try using a new thing built into alpine called [[https://wiki.alpinelinux.org/wiki/How-To_Alpine_Wall][awall]].
+There's a fun [[https://wiki.alpinelinux.org/wiki/Zero-To-Awall][Zero to Awall]] guide available which can get you started.
+
+I don't want to explain a full example (the docs are better than what I can do), but here's some highlights.
+
+**** Enable packet forwarding
+The linux kernel must be told that it is allowed to forward packets.
+Put =net.ipv4.ip_forward = 1= in a =sysctl.conf= file on alpine, see https://wiki.alpinelinux.org/wiki/Sysctl.conf
+This is probably needed for ipv6 as well, if you aren't a bad person who is ignoring ipv6, like me
+
+**** Most (all?) for awalls config files can be written in =yaml=
+The Zero To Awall guide has this example:
+
+=/etc/awall/private/custom-services.json=:
+
+#+begin_src json
+{
+    "service": {
+        "openvpn": [
+            { "proto": "udp", "port": 1194 },
+            { "proto": "tcp", "port": 1194 }
+        ]
+    }
+}
+#+end_src
+
+But, you could also create an equivelent =/etc/awall/private/custom-services.yaml= if you want:
+#+begin_src yaml
+service:
+  openvpn:
+    - { proto: udp, port: 1194 }
+    - { proto: tcp, port: 1194 }
+#+end_src
+
+*** Tricks
+In case the internet every goes down, I sometimes need to refresh my ISP DHCP lease to get it to come back up.
+I stuck a =checkinit.sh= script into my =$PATH= somewhere, then added it to =cron= to run once a minute:
+
+#+begin_src bash
+gateway:~# crontab -l
+# min	hour	day	month	weekday	command
+*	*	*	*	*	checkinet.sh| logger -t checkinet
+
+gateway:~# cat $(which checkinet.sh)
+#!/bin/sh
+
+echo "Checking if internet still up"
+
+# does not use our dns server, uses isp
+if ! ping -c5 google.com; then
+	echo "bouncing network interface"
+	ifdown eth0
+	ifup eth0
+        #unbound needed to be restarted, dnsmasq appears to be fine with this
+	#sleep 30
+	#/etc/init.d/unbound restart # idk why this needs to happen
+else
+	echo "Internet still up!"
+fi
+#+end_src
+
+This is really only testing if I can resolve =google.com=, since ping will probably work if I can reach DNS to resolve google, but whatever.
+The script gets me back up and going if I unplug stuff or if my ISP flakes out for some reason (which has only happened twice ever, this fixed it the second time), and it's never killed my internet spuriously, so I guess it works?
+
+I also:
+- Cranked up the syslog file size and max files to keep around by editing an init file (probably the wrong way to do it)
+- Installed the S.M.A.R.T. tools (since there's an SSD in the thing)
+- Created a cron job to run smart tests sometimes and log it somewhere (which I've never looked at)
+
+** Setup [[http://www.thekelleys.org.uk/dnsmasq/doc.html][dnsmasq]] as a DHCP server and DNS server
+The arch wiki has wonderful docs for this, as usual. Just go read those.
+
+All I really had to do in the end was:
+- Set a domain name (I made up a star-trek themed subdomain or my public domain)
+- Tell dnsmasq what interfaces to listen on and from where to allow DNS queries
+- Configure dnsmasq to resolve gateway.apartment.me.com to the =172.16.1.1= host
+  - Create a file called =/etc/hosts.dnsmasq= with the only the line =172.16.1.1	gateway=
+  - Tell dnsmasq not to read the =/etc/hosts= file with the =no-hosts= configuration option
+  - Then, give dnsmasq the configuration =addn-hosts=/etc/hosts.dnsmasq=
+  - This way, the local networking does not have to be tainted by anything I might want a fixed IP for.
+
+*** Download [[https://pi-hole.net/][pi-hole]]'s ad domain blacklist
+From https://github.com/notracking/hosts-blocklists.
+Put the tracking domain lists somewhere then just set:
+
+#+begin_src
+conf-file=/path/to/domains.txt
+addn-hosts=/path/to/hostnames.txt
+#+end_src
+
+In the dnsmasq config file.
+See the dnsmasq docs for an explanation of the difference.
+
+** Pay for and plug in some sort of Wireless Access Point
+I bought a Unifi AP and followed the instructions to set it up.
+It works.
+
+** Setup alpine and DNS on a cloud server somewhere
+Same as above mostly, just with a different made-up star trek themed subdomain.
+
+** Wireguard
+Each device that can connect to the server needs a private/public key pair.
+The server contains a list of recognized public keys; only the devices in the server config can connect.
+
+There's a wireguard-tooling package available that you can use to generate keys.
+Generate keys for each device (including the server):
+
+#+begin_src bash
+$ umask 077 # make sure no one can read your files
+$ wg genkey | tee private_key | wg pubkey > public_key
+$ ls
+private_key public_key
+#+end_src
+
+Once you are done with these files, delete them.
+There's two ways to setup wireguard networking 1) =wg-quick= (easy) 2) the hard way.
+For my laptop and other "dynamic" devices that don't have stable IPs, I used (1).
+For the apartment gateway and cloud gateay, I used approach (2).
+
+*** On the VPN server (cloud instance)
+Create a wireguard server config at =/etc/wireguard/wg0.conf=.
+
+#+begin_src conf
+gateway:~# cat /etc/wireguard/wg0.conf
+[Interface]
+PrivateKey = ..... # put the contents of the private key file here
+ListenPort = .... # 51820 seems to be standard port
+
+# For each device that can connect to the VPN, create a [Peer] block
+
+# gateway router in apartment
+[Peer]
+PublicKey = ..... # put the contents of the public key file here
+# The AllowedIPs list is sort of like a routing table
+# In this section, we specify which IPs may be reached by directing traffic to this peer.
+# For the apartment router:
+# - assign the VPN IP: 172.16.255.2 and
+# - allow wireguard to route traffic from the VPN subnet to the 172.16.1.0/24 using this peer
+AllowedIPs = 172.16.255.2/32, 172.16.1.0/24
+
+# laptop
+[Peer]
+PublicKey = ..... # put the contents of the public key file here
+
+# laptop is assigned a static ip.
+# this static ip is the only thing I'm allowing the VPN network to access
+AllowedIps = 172.16.255.3/32
+
+# .... more peers here
+
+#+end_src
+
+Next, configure kernel's networking to create the wireguard interface:
+1) create a new interface named =wg0=
+2) use the =wg= tool to set the interface config file
+3) set a static ip/netmask for this interface/subnet
+4) Add a routing table entry to route traffic from the cloud subnet to the apartment subnet over the =wg0= interface
+
+This is done by adding more stuff to =/etc/network/interfaces=:
+
+#+begin_src conf
+auto wg0
+iface wg0 inet static
+	address 172.16.255.1
+	netmask 255.255.255.0
+	pre-up ip link add dev wg0 type wireguard
+	pre-up wg setconf wg0 /etc/wireguard/wg0.conf
+	post-up ip route add 172.16.1.0/24 dev wg0
+	post-down ip link delete wg0
+#+end_src
+
+*** On the apartment =gateway=
+The router in my apartment is a VPN client, maintaining a persistent connection to the VPN server.
+
+In =/etc/wireguard/wg0.conf= put something like:
+#+begin_src conf
+[Interface]
+PrivateKey = .... # private key associated with this peer
+
+[Peer]
+Endpoint = <public ip of VPN server>:<port of VPN server>
+PublicKey = ...... # public key goes here
+PersistentKeepalive = 25  # keep the connection alive at all times
+
+# Allow the apartment router to route traffic into:
+# - VPN subnet
+# - cloud subnet
+AllowedIPs = 172.16.255.0/24, 172.16.2.0/24
+#+end_src
+
+Then, we create the new interface in =/etc/network/interfaces=, again, configuring the extra routing:
+
+#+begin_src conf
+auto wg0
+iface wg0 inet static
+	address 172.16.255.2
+	netmask 255.255.255.0
+	pre-up ip link add dev wg0 type wireguard
+	pre-up wg setconf wg0 /etc/wireguard/wg0.conf
+	post-up ip route add 172.16.2.0/24 dev wg0
+	post-down ip link delete wg0
+#+end_src
+
+*** On a "dynamic" VPN client
+
+* Act 2: overkill
+
+The first order of business was finding a "quiet, low power, expandable, powerful server."
+After reading r/homelab for many many hours, I eventually settled on a Dell R720 with 2.5 inch drive bays.
+
+This is a 2U server, with fantastic remote mangement tools (these are a lifesaver).
+The the machine I ended up with came with:
+- 2x xeon E5-2650 v2
+- 32 gig ECC RAM
+- H710p controller (this was the upgrade option, more on that later..)
+- 2x 10k SAS drives (300gigs each)
+
+This was a $379 server.
+Passmark gives the dual xeons an [[https://www.cpubenchmark.net/cpu.php?cpu=Intel+Xeon+E5-2650+v2+%40+2.60GHz&id=2042&cpuCount=2][18813]].
+A new 2016 i7 (the one I used until RYZEN happened) sells in 2020 for $300  passmarks at [[https://www.cpubenchmark.net/cpu.php?cpu=Intel+Core+i7-6700K+%40+4.00GHz&id=2565][11108]].
+Passmark isn't all that interesting of a benchmark, dual socket is a
+lot different than single socket, and the xeons really like power,
+but, this still feels like a pretty good deal to me.
+
+Networking gear:
+- CSS326-24G-2S+RM: 24 port 1gib, 2 SFP+ 10gib (switch only), 19W
+- CRS309-1G-8S+IN: 8 SFP+ 10gib, 1x 1gib for managment (can do router as well), 23W
+
+* NAS hell
+* Ramblings about The Cloud
