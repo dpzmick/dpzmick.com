@@ -279,6 +279,23 @@ iface wg0 inet static
 #+end_src
 
 *** On a "dynamic" VPN client
+    
+#+begin_src
+[Interface]
+Address = 172.16.255.2/32
+PrivateKey = .... # private key for this device
+PostUp = printf 'domain vpn.me.com\nnameserver 172.16.2.1' | resolvconf -a %i -m 0 -x
+PostUp = systemctl restart dnsmasq
+PostDown = resolvconf -d %i
+
+[Peer]
+Endpoint = <server public ip>:<server public port>
+PublicKey = ...... # public key for the server
+PersistentKeepalive = 25
+#AllowedIPs = 172.16.255.0/24, 172.16.2.0/24, 172.16.1.0/24
+AllowedIPs = 0.0.0.0/0, ::/0
+#+end_src
+
 
 * Act 2: overkill
 
