@@ -291,7 +291,7 @@ Here's the config from my (arch linux/systemd) laptop:
 
 #+begin_src conf
 [Interface]
-Address = 172.16.255.2/32
+Address = 172.16.255.3/32
 PrivateKey = .... # private key for this device
 # After coming up, reconfigure my domain resolution.
 # I'm on the vpn subdomain now. I resolve DNS queries with the cloud region's DNS server
@@ -307,7 +307,7 @@ PublicKey = ...... # public key for the server
 PersistentKeepalive = 25
 # Route *all traffic* through the VPN
 AllowedIPs = 0.0.0.0/0, ::/0
-# Alternatively, we could use a list like: 
+# Alternatively, we could use a list like:
 # AllowedIPs = 172.16.255.0/24, 172.16.2.0/24, 172.16.1.0/24
 # to route only internal traffic through the VPN.
 # This list can be as precise as you need it to be.
@@ -330,12 +330,6 @@ ExecStart=sh -c '(ip link show wg0 && wg-quick down wg0) || true'
 [Install]
 WantedBy=suspend.target
 #+end_src
-
-** DNS
-# Add other name servers here, with domain specs if they are for
-# non-public domains.
-server=/farpoint.dpzmick.com/172.16.2.1
-server=/2.16.172.in-addr.arpa/172.16.2.1
 
 
 
@@ -363,3 +357,43 @@ Networking gear:
 -* NAS hell
 -* Ramblings about The Cloud
 #+end_comment
+
+** Tweak dnsmasq config again
+Make sure that the DNS servers know how to send queries to each other:
+
+In the apt.me.com dnsmasq config:
+#+begin_src conf
+# Add other name servers here, with domain specs if they are for
+# non-public domains.
+server=/cloud.me.com/172.16.2.1
+server=/2.16.172.in-addr.arpa/172.16.2.1
+#+end_src
+
+In the cloud.me.com dnsmasq config:
+#+begin_src conf
+# Add other name servers here, with domain specs if they are for
+# non-public domains.
+server=/apt.me.com/172.16.1.1
+server=/1.16.172.in-addr.arpa/172.16.1.1
+
+# Allow VPN to use the cloud-region's DNS server
+server=172.16.2.1@wg0
+#+end_src
+
+* Finally: use the system
+** Good
+- Wireguard is rock solid, even on my phone and from an airplane.
+- My local network performance is incredible
+- The tracker block lists noticeably effect load times for some sites
+- The latency/bandwidth I get back to my apartment is low/high, from everywhere I've been in Chicago
+** Bad
+- DHCP lease refreshes are slow for me right now
+  - When my lease expires, sometimes I'll see connectivity blips
+- The latency/bandwidth I get from when connecting to my apartment or cloud instance in Chicago from somewhere like Florida seems poor
+  - This is probably an issue with my choice of cloud vendor
+- The tracker block lists break lots of things, which is sometimes annoying
+  - Many tracker links are broken (emailed, google sponsored, etc)
+  - Facebook behaves strangely
+- I haven't setup ipv6
+
+Overall, I'm extremely happy with how this turned out.
