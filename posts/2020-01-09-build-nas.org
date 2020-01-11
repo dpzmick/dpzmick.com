@@ -1,13 +1,14 @@
-#+TITLE: Homelab: VPNs, RAID Controllers, ZFS, and SFPs
+#+TITLE: Homelab Act 1: VPNs
 #+DATE: <2020-01-09>
 
-For the last 170 days (according to uptime on one my routers), I've
-been setting up a small homelab.
-Homelabs are kind of cool, and, the setup has been /interesting/, so
-here's a +warning+ fun story about homelabs.
+For the last 170 days (according to uptime on one my routers), I've been setting up a small homelab.
+Homelabs are kind of cool, and, the setup has been /interesting/.
+I'll be writing a few posts explaining the steps I took.
 
-* Why homelab?
+* VPNs
 
+#+begin_comment
+-* Why homelab?
 - To learn more about networking; hands on experience is the best way to do that
 - I've been bouncing around some networking-related project ideas, I wanted switches that could collect stats
 - I wanted a VPN to access my desktop remotely
@@ -17,8 +18,7 @@ here's a +warning+ fun story about homelabs.
 - A 6+ year old SSD I had failed and I didn't notice until too late.
   - RAID seems cool and I like blinking lights
 - Grafana dashboards of obvious metrics (cpu load, memory usage, etc) are awesome for understand how software behaves. I wanted this at home
-
-* Act 1: VPN
+#+end_comment
 
 Unfortunately, I don't have a public IP in my building, so setting up remote access had to be a little more involved than just opening a port for ssh.
 I found a tiny, passively cooled, quad-port *intel* NIC, celeron box [[https://www.amazon.com/Firewall-Gigabit-Celeron-AES-NI-Barebone/dp/B07G7H4M73][on amazon]], and figured I'd try setting up my own linux router and run my own VPN server in AWS or something.
@@ -40,16 +40,21 @@ The network is organized as:
     - I wanted to be able to use cloud VMs for other services, so I found a provider that suported private networking
   - Wireguard speaks IP, so it needs a subnet too. It got =172.16.255.xxx=
     - Each device connected to the VPN gets an IP on this subnet
-- Use one private subdomain for each "region," excluding the VPN region (ie apartment.me.com, cloud.me.com)
+- Use one private, made-up subdomain for each "region." For example, you could use =apartment.me.com=, =cloud.me.com=, and =vpn.me.com=.
+  - I'm using a private subdomains of a domain that I control to ensure that I never clash with anything that actually exists.
 - Have a DHCP server and DNS server available in each region (the DHCP host will always be =xxx.xxx.xxx.1= and have hostname/dns name =gateway=)
   - DNS is authoritative for its subdomain
   - VPN region just routes DNS to the cloud region
   - The VPN =gateway= is just the VPN server
-  - There is no DHCP for VPN subnet
+  - There is no DHCP for VPN subnet since all VPN clients wil have a static IP
 - The VPN server/cloud gateway has a public IP
-  - and a firewall that drops everything other than VPN traffic
+  - Probably also want a firewall that drops everything other than VPN traffic (I'm using cloud provider firewall and a firewall on the server)
 
 I haven't figured out ipv6 yet because I'm a bad person.
+
+The =172.16.xxx.xxx= prefix was selected to try and avoid conflicting with commercial subnets (=10.xxx.xxx.xxx=) and common private subnets (=192.168.xxx.xxx=).
+The entire =172.16.0.0/12= subnet is private, so we can do whatever we want in this range.
+Unfortunately, a local coffee shop I frequent uses an IP range that clashes with mine, so I have to get clever with routing rules when I am working there.
 
 ** Install [[https://alpinelinux.org/][alpine linux]] on local router
 The official install guides are good and more up to date than anything I'd have to say about this.
@@ -71,14 +76,10 @@ iface eth1 inet static
 =eth0= is hooked to my ISP (so I get a DHCP ip), and =eth1= was hooked to a tiny TP-Link switch I had laying around.
 
 *** Firewall and NAT
-=iptables= sucks to use, but I tried this for a while.
-I never quite got =iptables= working, but I learned enough to (temporarily) sort of understand what it did.
-=shorewall= seemed cool, but the rules I saw it generating were way too complicated, even for tiny simple things.
+After spending time banging my head against the =iptable=, I gave up and tried using a this thing built into alpine called [[https://wiki.alpinelinux.org/wiki/How-To_Alpine_Wall][awall]].
+There's a pretty good [[https://wiki.alpinelinux.org/wiki/Zero-To-Awall][Zero to Awall]] guide available which can get you started.
 
-Eventually I decided to try using a new thing built into alpine called [[https://wiki.alpinelinux.org/wiki/How-To_Alpine_Wall][awall]].
-There's a fun [[https://wiki.alpinelinux.org/wiki/Zero-To-Awall][Zero to Awall]] guide available which can get you started.
-
-I don't want to explain a full example (the docs are better than what I can do), but here's some highlights.
+I don't want to explain a full example (the docs are again better than what I can do), but here's some highlights.
 
 **** Enable packet forwarding
 The linux kernel must be told that it is allowed to forward packets.
@@ -145,16 +146,22 @@ I also:
 - Created a cron job to run smart tests sometimes and log it somewhere (which I've never looked at)
 
 ** Setup [[http://www.thekelleys.org.uk/dnsmasq/doc.html][dnsmasq]] as a DHCP server and DNS server
-The arch wiki has wonderful docs for this, as usual. Just go read those.
+The arch wiki has wonderful docs for this. Just go read those.
 
 All I really had to do in the end was:
-- Set a domain name (I made up a star-trek themed subdomain or my public domain)
+- Turn on DHCP and DNS servers
+  - Enable =dhcp-authoritative=
+  - Provide useful defaults to connected clients: =dhcp-option=option:router,172.16.1.1=
 - Tell dnsmasq what interfaces to listen on and from where to allow DNS queries
-- Configure dnsmasq to resolve gateway.apartment.me.com to the =172.16.1.1= host
+- Tell dnsmasq which domain it is going to be authoritative for
+  - =domain=<whatever>.me.com= and =local=/<whatever>.me.com/=
+- Configure dnsmasq to resolve gateway.<whatever>.me.com to the =172.16.1.1= host
   - Create a file called =/etc/hosts.dnsmasq= with the only the line =172.16.1.1	gateway=
   - Tell dnsmasq not to read the =/etc/hosts= file with the =no-hosts= configuration option
   - Then, give dnsmasq the configuration =addn-hosts=/etc/hosts.dnsmasq=
   - This way, the local networking does not have to be tainted by anything I might want a fixed IP for.
+- Log a lot
+  - =dhcp-script=/bin/echo=, =log-queries=, and =log-dhcp=
 
 *** Download [[https://pi-hole.net/][pi-hole]]'s ad domain blacklist
 From https://github.com/notracking/hosts-blocklists.
@@ -189,13 +196,11 @@ $ ls
 private_key public_key
 #+end_src
 
-Once you are done with these files, delete them.
-There's two ways to setup wireguard networking 1) =wg-quick= (easy) 2) the hard way.
-For my laptop and other "dynamic" devices that don't have stable IPs, I used (1).
-For the apartment gateway and cloud gateay, I used approach (2).
+Once you are done copying the contents of these files into the wireguard configs, delete them.
 
 *** On the VPN server (cloud instance)
 Create a wireguard server config at =/etc/wireguard/wg0.conf=.
+Note that I am not using the =wg-quick= interface for this or the apartment router.
 
 #+begin_src conf
 gateway:~# cat /etc/wireguard/wg0.conf
@@ -218,7 +223,6 @@ AllowedIPs = 172.16.255.2/32, 172.16.1.0/24
 # laptop
 [Peer]
 PublicKey = ..... # put the contents of the public key file here
-
 # laptop is assigned a static ip.
 # this static ip is the only thing I'm allowing the VPN network to access
 AllowedIps = 172.16.255.3/32
@@ -227,13 +231,13 @@ AllowedIps = 172.16.255.3/32
 
 #+end_src
 
-Next, configure kernel's networking to create the wireguard interface:
+Next, configure kernel's networking stack:
 1) create a new interface named =wg0=
 2) use the =wg= tool to set the interface config file
 3) set a static ip/netmask for this interface/subnet
 4) Add a routing table entry to route traffic from the cloud subnet to the apartment subnet over the =wg0= interface
 
-This is done by adding more stuff to =/etc/network/interfaces=:
+This is done on alpine by adding more stuff to =/etc/network/interfaces=:
 
 #+begin_src conf
 auto wg0
@@ -258,14 +262,13 @@ PrivateKey = .... # private key associated with this peer
 Endpoint = <public ip of VPN server>:<port of VPN server>
 PublicKey = ...... # public key goes here
 PersistentKeepalive = 25  # keep the connection alive at all times
-
 # Allow the apartment router to route traffic into:
 # - VPN subnet
 # - cloud subnet
 AllowedIPs = 172.16.255.0/24, 172.16.2.0/24
 #+end_src
 
-Then, we create the new interface in =/etc/network/interfaces=, again, configuring the extra routing:
+Create the new interface in =/etc/network/interfaces=:
 
 #+begin_src conf
 auto wg0
@@ -279,25 +282,53 @@ iface wg0 inet static
 #+end_src
 
 *** On a "dynamic" VPN client
-    
-#+begin_src
+On machines like my laptop, I want to easily bring the VPN up and down.
+This is easy to do with the =wg-quick= tool.
+=wg-quick= allows you to add a few more entries to the config file.
+When you run =wg-quick up wg0=, it will bring up the interface, configure routing, and PostUp/PostDown scripts.
+
+Here's the config from my (arch linux/systemd) laptop:
+
+#+begin_src conf
 [Interface]
 Address = 172.16.255.2/32
 PrivateKey = .... # private key for this device
+# After coming up, reconfigure my domain resolution.
+# I'm on the vpn subdomain now. I resolve DNS queries with the cloud region's DNS server
 PostUp = printf 'domain vpn.me.com\nnameserver 172.16.2.1' | resolvconf -a %i -m 0 -x
+# dnsmasq caches queries, so restart it to make sure the cache is clean
 PostUp = systemctl restart dnsmasq
+# on teardown, undo the DNS resolver tweaks
 PostDown = resolvconf -d %i
 
 [Peer]
 Endpoint = <server public ip>:<server public port>
 PublicKey = ...... # public key for the server
 PersistentKeepalive = 25
-#AllowedIPs = 172.16.255.0/24, 172.16.2.0/24, 172.16.1.0/24
+# Route *all traffic* through the VPN
 AllowedIPs = 0.0.0.0/0, ::/0
+# Alternatively, we could use a list like: 
+# AllowedIPs = 172.16.255.0/24, 172.16.2.0/24, 172.16.1.0/24
+# to route only internal traffic through the VPN.
+# This list can be as precise as you need it to be.
 #+end_src
 
+**** Laptop Lid
+When my laptop lid closes, I kill the wireguard connection with a systemd unit file.
+This seems to minimize confusion when I close my laptop and take it somewhere.
 
-* Act 2: overkill
+In =/etc/systemd/system/wg-down.service=:
+
+** DNS
+# Add other name servers here, with domain specs if they are for
+# non-public domains.
+server=/farpoint.dpzmick.com/172.16.2.1
+server=/2.16.172.in-addr.arpa/172.16.2.1
+
+
+
+#+begin_comment
+-* Act 2: overkill
 
 The first order of business was finding a "quiet, low power, expandable, powerful server."
 After reading r/homelab for many many hours, I eventually settled on a Dell R720 with 2.5 inch drive bays.
@@ -310,15 +341,13 @@ The the machine I ended up with came with:
 - 2x 10k SAS drives (300gigs each)
 
 This was a $379 server.
-Passmark gives the dual xeons an [[https://www.cpubenchmark.net/cpu.php?cpu=Intel+Xeon+E5-2650+v2+%40+2.60GHz&id=2042&cpuCount=2][18813]].
-A new 2016 i7 (the one I used until RYZEN happened) sells in 2020 for $300  passmarks at [[https://www.cpubenchmark.net/cpu.php?cpu=Intel+Core+i7-6700K+%40+4.00GHz&id=2565][11108]].
-Passmark isn't all that interesting of a benchmark, dual socket is a
-lot different than single socket, and the xeons really like power,
-but, this still feels like a pretty good deal to me.
+This is a 2013 CPU, so the performance/power isn't going to be as good as newer cpus, but the performance/dollar here is pretty impressive.
+
 
 Networking gear:
 - CSS326-24G-2S+RM: 24 port 1gib, 2 SFP+ 10gib (switch only), 19W
 - CRS309-1G-8S+IN: 8 SFP+ 10gib, 1x 1gib for managment (can do router as well), 23W
 
-* NAS hell
-* Ramblings about The Cloud
+-* NAS hell
+-* Ramblings about The Cloud
+#+end_comment
