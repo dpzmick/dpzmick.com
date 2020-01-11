@@ -318,6 +318,18 @@ When my laptop lid closes, I kill the wireguard connection with a systemd unit f
 This seems to minimize confusion when I close my laptop and take it somewhere.
 
 In =/etc/systemd/system/wg-down.service=:
+#+begin_src conf
+[Unit]
+Description=Kill wg when machine goes to sleep
+After=suspend.target
+
+[Service]
+Type=oneshot
+ExecStart=sh -c '(ip link show wg0 && wg-quick down wg0) || true'
+
+[Install]
+WantedBy=suspend.target
+#+end_src
 
 ** DNS
 # Add other name servers here, with domain specs if they are for
