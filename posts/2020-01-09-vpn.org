@@ -5,20 +5,12 @@ For the last 170 days (according to uptime on one my routers), I've been setting
 Homelabs are kind of cool, and, the setup has been /interesting/.
 I'll be writing a few posts explaining the steps I took.
 
-* VPNs
+- Part 1 (this post)
+- Part 2 [[./2020-01-11-server-network.org][Servers and 10GbE]]
+- Part 3 [[./2020-01-12-nas.org][NAS, ZFS, and NFS]]
+- Part 4 Services and Applications (coming soon)
 
-#+begin_comment
--* Why homelab?
-- To learn more about networking; hands on experience is the best way to do that
-- I've been bouncing around some networking-related project ideas, I wanted switches that could collect stats
-- I wanted a VPN to access my desktop remotely
-- [[https://pi-hole.net/][Tracker-blocking DNS servers]] seemed cool
-- My RAW photo collection, note taking tools, source control, saved documents, academic paper collection (with some notes), audio sample collection, etc all live in The Cloud and nothing talks to anything else.
-  - I'm (still) looking for a better way
-- A 6+ year old SSD I had failed and I didn't notice until too late.
-  - RAID seems cool and I like blinking lights
-- Grafana dashboards of obvious metrics (cpu load, memory usage, etc) are awesome for understand how software behaves. I wanted this at home
-#+end_comment
+* VPNs
 
 Unfortunately, I don't have a public IP in my building, so setting up remote access had to be a little more involved than just opening a port for ssh.
 I found a tiny, passively cooled, quad-port *intel* NIC, celeron box [[https://www.amazon.com/Firewall-Gigabit-Celeron-AES-NI-Barebone/dp/B07G7H4M73][on amazon]], and figured I'd try setting up my own linux router and run my own VPN server in AWS or something.
@@ -379,6 +371,10 @@ server=/1.16.172.in-addr.arpa/172.16.1.1
 # Allow VPN to use the cloud-region's DNS server
 server=172.16.2.1@wg0
 #+end_src
+
+** Plug it all in
+I plugged the new router box into the wall (on port 0), and plugged a small 4-port TP-link switch into port 1.
+Everything else is plugged into the TP-link switch.
 
 * Finally: use the system
 ** Good
