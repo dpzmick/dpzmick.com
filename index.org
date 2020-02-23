@@ -45,7 +45,7 @@ Email: dpzmick gmail
   (defun generate-homepage-links (posts-directory)
     (mapcar (lambda (elt)
               (concat
-               (format-time-string "%h %d, %Y"
+               (format-time-string "=%h %d, %Y="
                                    (actually-parse-time (cdr (assoc "DATE" elt))))
                " - "
                "[[file:" (cdr (assoc "FILENAME" elt)) "]"
@@ -56,12 +56,17 @@ Email: dpzmick gmail
 #+END_SRC
 
 #+RESULTS:
-- May 25, 2019 - [[file:/home/dpzmick/programming/new-website/posts/2019-05-25-pin-rs-cpp.org][Understaning Pin (for C and C++ Developers)]]
-- May 25, 2017 - [[file:/home/dpzmick/programming/new-website/posts/2017-05-25-outsmarting-the-compiler.org][Outsmarting the Compiler]]
-- Jan 23, 2017 - [[file:/home/dpzmick/programming/new-website/posts/2017-01-23-rust-arc-gc-realtime.org]["Garbage Collection" for Rust Arc Pointers]]
-- Dec 17, 2016 - [[file:/home/dpzmick/programming/new-website/posts/2016-12-17-audio-basics.org][Audio programming 101]]
-- Aug 11, 2016 - [[file:/home/dpzmick/programming/new-website/posts/2016-08-11-rust-jit-image-processing.org][Rust Image Processing DSL]]
-- Jun 09, 2015 - [[file:/home/dpzmick/programming/new-website/posts/2015-06-09-ants.org][Ants]]
-- Jun 01, 2014 - [[file:/home/dpzmick/programming/new-website/posts/2014-07-07-study-groups-pt-2.org][Study Groups Pt. 2]]
-- May 31, 2014 - [[file:/home/dpzmick/programming/new-website/posts/2014-05-31-study-groups-pt-1.org][Study Groups Pt. 1]]
-- Jan 17, 2014 - [[file:/home/dpzmick/programming/new-website/posts/2014-01-17-decision-matrix.org][Decision Matrix]]
+- =Feb 23, 2020= - [[file:/home/dpzmick/programming/new-website/posts/2020-02-01-homelab4-cloud.org][Homelab Act 4: Services and Applications]]
+- =Jan 12, 2020= - [[file:/home/dpzmick/programming/new-website/posts/2020-01-12-nas.org][Homelab Act 3: NAS, ZFS, and NFS]]
+- =Jan 11, 2020= - [[file:/home/dpzmick/programming/new-website/posts/2020-01-11-server-network.org][Homelab Act 2: Servers and 10GbE]]
+- =Jan 09, 2020= - [[file:/home/dpzmick/programming/new-website/posts/2020-01-09-vpn.org][Homelab Act 1: VPNs]]
+- =Nov 26, 2019= - [[file:/home/dpzmick/programming/new-website/posts/2019-11-26-rust-tips.org][Rust for C/C++ developers]]
+- =Nov 15, 2019= - [[file:/home/dpzmick/programming/new-website/posts/2019-05-25-pin-rs-cpp.org][Understaning Pin (for C and C++ Developers)]]
+- =May 25, 2017= - [[file:/home/dpzmick/programming/new-website/posts/2017-05-25-outsmarting-the-compiler.org][Outsmarting the Compiler]]
+- =Jan 23, 2017= - [[file:/home/dpzmick/programming/new-website/posts/2017-01-23-rust-arc-gc-realtime.org]["Garbage Collection" for Rust Arc Pointers]]
+- =Dec 17, 2016= - [[file:/home/dpzmick/programming/new-website/posts/2016-12-17-audio-basics.org][Audio programming 101]]
+- =Aug 11, 2016= - [[file:/home/dpzmick/programming/new-website/posts/2016-08-11-rust-jit-image-processing.org][Rust Image Processing DSL]]
+- =Jun 09, 2015= - [[file:/home/dpzmick/programming/new-website/posts/2015-06-09-ants.org][Ants]]
+- =Jun 01, 2014= - [[file:/home/dpzmick/programming/new-website/posts/2014-07-07-study-groups-pt-2.org][Study Groups Pt. 2]]
+- =May 31, 2014= - [[file:/home/dpzmick/programming/new-website/posts/2014-05-31-study-groups-pt-1.org][Study Groups Pt. 1]]
+- =Jan 17, 2014= - [[file:/home/dpzmick/programming/new-website/posts/2014-01-17-decision-matrix.org][Decision Matrix]]
