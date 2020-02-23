@@ -8,7 +8,7 @@ I'll be writing a few posts explaining the steps I took.
 - Part 1 [[./2020-01-09-vpn.org][VPN setup]]
 - Part 2 (this post)
 - Part 3 [[./2020-01-12-nas.org][NAS, ZFS, and NFS]]
-- Part 4 Services and Applications (coming soon)
+- Part 4 [[./2020-02-01-homelab4-cloud.org][Services and Applications]]
 
 Since I could access my system remotely, I had started [[file:../static/homelab/desktop_under_desk.jpg][sticking interesting network cards into my desktop]] around this time and working on projects remotely.
 Unfortunately, I didn't have enough PCIe slots, or PCIe lanes, to keep all of these plugged in at the same time.

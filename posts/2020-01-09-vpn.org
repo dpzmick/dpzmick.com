@@ -8,7 +8,7 @@ I'll be writing a few posts explaining the steps I took.
 - Part 1 (this post)
 - Part 2 [[./2020-01-11-server-network.org][Servers and 10GbE]]
 - Part 3 [[./2020-01-12-nas.org][NAS, ZFS, and NFS]]
-- Part 4 Services and Applications (coming soon)
+- Part 4 [[./2020-02-01-homelab4-cloud.org][Services and Applications]]
 
 * VPNs
 

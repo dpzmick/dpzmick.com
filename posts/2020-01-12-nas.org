@@ -8,7 +8,7 @@ I'll be writing a few posts explaining the steps I took.
 - Part 1 [[./2020-01-09-vpn.org][VPN setup]]
 - Part 2 [[./2020-01-11-server-network.org][Servers and 10GbE]]
 - Part 3 (this post)
-- Part 4 Services and Applications (coming soon)
+- Part 4 [[./2020-02-01-homelab4-cloud.org][Services and Applications]]
 
 In this homelab post, I'll be detailing how I converted the R720 I bought on eBay into a NAS server on my local network.
 This was an expensive project; I'm not sure it was worth the time or energy.
