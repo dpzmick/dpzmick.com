@@ -1,5 +1,5 @@
 #+TITLE: Homelab Act 4: Services and Applications
-#+DATE: <2020-02-01>
+#+DATE: <2020-02-23>
 
 For the last 192 days (according to uptime on one my routers), I've been setting up a small homelab.
 Homelabs are kind of cool, and, the setup has been /interesting/.
