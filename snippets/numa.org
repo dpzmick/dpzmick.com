@@ -1,0 +1,84 @@
+* Traditional NUMA
+Before diving in to discuss Ryzen, let's take at the memory system on a typical multi-socket (more than one CPU) machine.
+
+Big server machines with fancy Intel Xeon CPUs often contain more than one actual CPU.
+For example, this Dell R720 machine contains two Intel Xeon CPUs:
+[[../static/ryzen_numa/r720.png]]
+
+Machines are typically configured with have of their physical memory attached to the first cpu and the other half attached to the second.
+Fortunately for programmers, the CPUs in a multi-socket system know how to communicate with each other.
+If your program is running on CPU 2 and you access some physical memory attached to CPU 1, the CPU will work this out for you.
+
+Intel currently calls this communication technology the [[https://en.wikipedia.org/wiki/Intel_Ultra_Path_Interconnect][Ultra Path Interconnect]].
+It looks something like this:
+#+begin_src ditaa :file ../static/ryzen_numa/upi.png :cmdline -S
+
+/-------\           /-------\
+|       |   "UPI"   |       |
+| CPU 1 |<--------->| CPU 2 |
+|       |           |       |
+\-------/           \-------/
+    |                   |
+    |                   |
+    |                   |
+/-------\           /-------\
+|       |           |       |
+|  RAM  |           |  RAM  |
+|       |           |       |
+\-------/           \-------/
+#+end_src
+
+#+RESULTS:
+[[file:../static/ryzen_numa/upi.png]]
+
+When CPU 1 reads from its locally attached RAM, it doesn't have to cross UPI.
+However, if CPU 2 needs to reach over to CPU 1's RAM, it will have to do a UPI transaction.
+
+Traditionally, this is called [[https://en.wikipedia.org/wiki/Non-uniform_memory_access][Non-Uniform Memory Access]] because memory access times will be non-uniform on such a system.
+
+** Caches
+Modern CPUs contain a variety of caches.
+Usually we call the fastest, smallest cache L1, the next fastest L2, and the largest, but slowest cache L3.
+These caches communicate with each other to move data around (see [[https://en.wikipedia.org/wiki/MESI_protocol][MESI protocol]]).
+Let's walk through some simplified examples.
+
+If Core 0 wants to read from memory, it will ask it's local L1 cache to perform the read.
+If the data is in the L1 cache, the cache sends the data to the CPU registers.
+If the data is not in the L1 cache, the cache asks L2, then L2 asks L3.
+
+Assume that the L3 cache can get data from main memory attached to the CPU, from the L1 and L2 caches, from L3 caches accessible over UPI, and from main memory accessible over UPI.
+On Intel, we can say that the L3 cache is "unified", meaning that all cores on a CPU share the same L3 cache ([[https://en.wikichip.org/wiki/intel/microarchitectures/cascade_lake#Block_Diagram][not entirely true but close enough on intel]]).
+
+Let's assume that all writes go into the L1 cache and are propagated out to other cores or main memory as needed.
+When the L1 cache is out of space, it will evict the data into the L2 cache.
+When the L2 cache is out of space, it will event the data into the L3 cache.
+Finally, if L3 runs out of space, it will evict the data back to main memory.
+
+Throwing UPI into the picture, it's adequate for our purposes to say that the L3 cache uses UPI fetch data from main memory on a remote CPU.
+
+#+begin_src ditaa :file ../static/ryzen_numa/unified_l3.png :cmdline -S -E
+                     /-----------------------------------\           /-----------------------------------\
+                     |                                   |           |                                   |
+                     |      Ultra Path Interconnect      |<--------->|      Ultra Path Interconnect      |
+                     |                                   |           |                                   |
+/-------------\      +-----------------------------------+           +-----------------------------------+       /-------------\
+|             |      |                                   |           |                                   |       |             |
+| Main Memory |<---->|   L3 cache (shared by all cores)  |           |   L3 cache (shared by all cores)  |<----->| Main Memory |
+|             |      |                                   |           |                                   |       |             |
+\-------------/      +--------+--------+--------+--------+           +--------+--------+--------+--------+       \-------------/
+                     |        |        |        |        |           |        |        |        |        |
+                     |  Core  |  Core  |  Core  |  Core  |           |  Core  |  Core  |  Core  |  Core  |
+                     |        |        |        |        |           |        |        |        |        |
+                     +--------+--------+--------+--------+           +--------+--------+--------+--------+
+                     |        |        |        |        |           |        |        |        |        |
+                     | L{1,2} | L{1,2} | L{1,2} | L{1,2} |           | L{1,2} | L{1,2} | L{1,2} | L{1,2} |
+                     |        |        |        |        |           |        |        |        |        |
+                     \--------+--------+--------+--------/           \--------+--------+--------+--------/
+#+end_src
+
+#+RESULTS:
+[[file:../static/ryzen_numa/unified_l3.png]]
+
+Traditionally, this has meant that, unless you have an expensive multi-socket server machine, programmers haven't had to care very much about memory "affinity."
+All CPU cores could access any part of memory (or other caches) in roughly the same amount of time.
+Accessing memory over UPI has traditionally been considerably slower than accessing local memory, so the pattern has more-or-less been to try and avoid crossing sockets as much as possible.
