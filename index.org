@@ -6,7 +6,7 @@ Some code is on [[https://github.com/dpzmick][github@dpzmick]] and [[https://git
 
 I have a [[./static/resume.pdf][resume available here]] but am not currently seeking a new position.
 
-Email: dpzmick gmail
+Email: david at dpzmick.com
 
 * Projects:
 - Modular synthesizer - [[https://www.youtube.com/channel/UCYkk_c66qufhHQBpM5wwLaQ][Videos]]
