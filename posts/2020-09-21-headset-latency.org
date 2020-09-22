@@ -1,0 +1,18 @@
+#+TITLE: Audio/Visual Latency Tests
+#+DATE: <2020-09-12>
+
+I've recently been toying around with different headset setups for zoom/casual online gaming (with voice) with friends.
+
+As part of this experiment, I decided to try out a pair of true wireless bluetooth earbuds, but was astonished by how terrible the audio latency seemed to be.
+
+In a (failed) attempt to measure the latency, I wrote these two little web "apps":
+
+1. [[../static/latency-tests/latency-audio-video.html][Proof of bad audio latency]] - a canvas that flashes red the same time that a sound is played.
+2. [[../static/latency-tests/latency-reaction-time.html][Attempt at quantifying the latency]] - a canvas flashes red, or a sound is played. User hits a button. Response times are recorded.
+
+Note: not sure if either of them work on iOS. Something seems to be broken, but debugging on iOS apparently requires owning a macbook.
+
+With (2), I was hoping that my response time variance would be low enough to effectively measure the bluetooth latency by comparing my audio and visual response times.
+This doesn't seem to be the case, my response times are all over the place.
+
+Likely I'll keep toying with how to measure this, maybe some fancy apparatus that records the audio my headphones hear?

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Audio Latency Tester</title>
+  </head>
+
+  <body>
+    <h2>Audio/visual latency and reaction time test</h2>
+
+    <p>
+      <input type="checkbox" id='audio'>Audio Signal</input>
+      <input type="checkbox" id='visual'>Visual Signal</input>
+    </p>
+
+    <canvas id='canvas' width="300" height="30" style="border: 1px solid">
+    </canvas>
+
+    <p>
+      <button id="event">I heard or saw something</button>
+    </p>
+
+    <p>Average visual reaction time: <span id='avg-visual'>nan</span> </p>
+    <p>Average audio reaction time: <span id='avg-audio'>nan</span> </p>
+
+    <table id='results' border='1'>
+      <tr>
+        <th>Event Type</th>
+        <th>Reaction Time (ms)</th>
+      </tr>
+    </table>
+
+    <script>
+      // roughly want to blink a frame for 8 frames when running at 60 fps
+      const visBlinkTimeMs = 8 * 16.6;
+      const eventTimeoutMs = 5000;
+
+      const minTimeBetweenEventsMs = 500;
+      const maxTimeBetweenEventsMs = 3000;
+
+      // NOTE: could stall a frame in theory
+      function nextEvent() {
+          var ms = 0;
+          while (ms < minTimeBetweenEventsMs || ms > maxTimeBetweenEventsMs) {
+              ms = Math.random() * 3000;
+          }
+
+          return ms;
+      }
+
+      const canvas = document.getElementById("canvas");
+      const canvasCtx = canvas.getContext("2d");
+
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      var metroData = []; // type?
+
+      // setup audio buffer
+      var request = new XMLHttpRequest();
+      request.open("GET", "250552__druminfected__metronome.wav");
+      request.responseType = "arraybuffer";
+      request.onload = function() {
+          var data = request.response;
+          audioContext.decodeAudioData(data, function(buffer) {
+              metroData = buffer;
+          });
+      };
+      request.send();
+
+      // grab some dom elements
+      var audioOnCheckbox = document.getElementById("audio");
+      var visualOnCheckbox = document.getElementById("visual");
+      var resultsTable = document.getElementById("results");
+
+      // must start with audio turned off due to autoplay restrictions
+      visualOnCheckbox.checked = true;
+      audioOnCheckbox.checked = false;
+      audioOnCheckbox.onclick = function() { audioContext.resume() };
+
+      // ---
+
+      // fill initial rectangle on canvas
+      canvasCtx.rect(0, 0, canvas.width, canvas.height);
+
+      var avgAudio = 0.0;
+      var avgVisual = 0.0;
+
+      // state machine
+      var machine = {
+          state: "noEvent",
+      };
+
+      function animate(now) {
+          if (machine.state === "noEvent") {
+              // schedule next event
+              var dtNextEventMs = nextEvent();
+
+              function fireVisual() {
+                  machine = {
+                      state: "eventPending",
+                      eventType: "visual",
+                      eventTime: now + dtNextEventMs
+                  };
+              }
+
+              function fireAudio() {
+                  machine = {
+                      state: "eventPending",
+                      eventType: "audio",
+                      eventTime: now + dtNextEventMs
+                  };
+
+                  // these can only be used once
+                  // docs say they are cheap to create
+
+                  const noiseMaker = audioContext.createBufferSource();
+                  noiseMaker.buffer = metroData;
+                  noiseMaker.connect(audioContext.destination);
+                  noiseMaker.start(audioContext.currentTime + dtNextEventMs/1000);
+              }
+
+              var audioOn = audioOnCheckbox.checked;
+              var visualOn = visualOnCheckbox.checked;
+
+              if (audioOn && visualOn) {
+                  // pick an event to fire
+                  if (Math.random() > 0.5) fireAudio();
+                  else                     fireVisual();
+              }
+              else if (audioOn) {
+                  fireAudio();
+              }
+              else if (visualOn) {
+                  fireVisual();
+              }
+          }
+          else if (machine.state == "eventPending") { 
+              if (now > machine.eventTime) {
+                  machine.state = "userReacting";
+                  machine.userReacted = false;
+
+                  if (machine.eventType === "visual") {
+                      machine.eventExpires = now + visBlinkTimeMs;
+                      machine.eventTime = now; // update event time for this frame
+
+                      canvasCtx.fillStyle = "red";
+                      canvasCtx.fill();
+                  }
+              }
+          }
+          else if (machine.state == "userReacting") {
+              // check if we need to clear visual event
+              if (now > machine.eventExpires && machine.eventType === "visual") {
+                  canvasCtx.fillStyle = "white";
+                  canvasCtx.fill();
+              }
+
+              // once use reacts, clear the event
+              if (machine.userReacted || now-machine.eventTime > eventTimeoutMs) {
+                  console.log("cleared event");
+                  machine = { state: "noEvent" };
+              }
+          }
+
+          window.requestAnimationFrame(animate);
+      };
+
+      window.requestAnimationFrame(animate);
+
+      document.getElementById("event").onclick = function() {
+          var now = performance.now();
+
+          if (machine.state == "userReacting" && !machine.userReacted) {
+              var row = resultsTable.insertRow();
+              var cell1 = row.insertCell();
+              var cell2 = row.insertCell();
+
+              cell1.innerHTML = machine.eventType;
+              cell2.innerHTML = now - machine.eventTime;
+
+              machine.userReacted = true;
+
+              if (machine.eventType === "audio") {
+                  var dt = now - machine.eventTime;
+                  if (avgAudio < 100) {
+                      avgAudio = dt;
+                  }
+                  else {
+                      avgAudio -= avgAudio / 10;
+                      avgAudio += dt / 10;
+                  }
+
+                  document.getElementById('avg-audio').innerHTML = avgAudio;
+              }
+
+              if (machine.eventType === "visual") {
+                  var dt = now - machine.eventTime;
+                  if (avgVisual < 100) {
+                      avgVisual = dt;
+                  }
+                  else {
+                      avgVisual -= avgVisual / 10;
+                      avgVisual += dt / 10;
+                  }
+
+                  document.getElementById('avg-visual').innerHTML = avgVisual;
+              }
+          }
+      };
+
+    </script>
+  </body>
+</html>
