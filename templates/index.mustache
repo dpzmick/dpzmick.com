@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>David Zmick</title>
+  <script type='text/javascript' src='/static/scripts.js'></script>
+  <link rel='stylesheet' type='text/css' href='/static/base.css' />
+  <link rel='stylesheet' type='text/css' id='theme-css' href='/static/base16-tomorrow-night.css' />
+</head>
+
+<body>
+  <div id="preamble" class="status">
+    <div id='#preamble'>
+      <h1><a href='/'>dpzmick.com</a></h1>
+    </div>
+  </div>
+  <div id="content">
+    <header>
+      <h1 class="title">David Zmick</h1>
+    </header>
+
+    <p>
+    I am currently a software engineer at Jump Trading, living in Chicago.
+    </p>
+
+    <p>
+    Some code is on <a href="https://github.com/dpzmick">github@dpzmick</a> and <a href="https://gitlab.com/dpzmick">gitlab@dpzmick</a>.
+    </p>
+
+    <p>
+    I have a <a href="./static/resume.pdf">resume available here</a> but am not currently seeking a new position.
+    </p>
+
+    <p>
+      Email: david at dpzmick.com
+    </p>
+
+    <h2>Projects:</h2>
+    <ul>
+      <li>Modular synthesizer - <a href="https://www.youtube.com/channel/UCYkk_c66qufhHQBpM5wwLaQ">Videos</a></li>
+      <li>Building a Homelab</li>
+      <li>Undergraduate senior thesis - <a href="./static/ugrad-thesis.pdf">Automatic parallelization of recursive functions in clojure</a></li>
+    </ul>
+
+    <h2>Blog Posts: <span id=rss><a href="/feed.xml"><img src="/static/rss.png"></a></span></h2>
+    <ul>
+    {{ #posts }}
+    <li><code>{{ DATE }}<code> - <a href="{{ PERMALINK }}">{{ TITLE }}</a></li>
+    {{ /posts }}
+    </ul>
+  </div>
+
+  <div id="postamble" class="status">
+    <div id='#postamble'>
+      <a href='/'>home</a>
+      <a class='need-js' href='#/' onclick='switchModes()'>switch-color-mode</a>
+    </div>
+  </div>
+</body>
+
+</html>
