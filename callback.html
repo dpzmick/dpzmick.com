@@ -1,0 +1,19 @@
+<body>
+    <ul id='lst'>
+    </ul>
+
+    <script>
+        const q = window.location.search;
+        const p = new URLSearchParams(q);
+
+        var ul = document.getElementById('lst');
+        for( const [k, v] of p ) {
+            console.log(k);
+            console.log(v);
+
+            var li = document.createElement('li');
+            li.appendChild(document.createTextNode(k+'='+v))
+            ul.appendChild(li);
+        }
+    </script>
+</body>
