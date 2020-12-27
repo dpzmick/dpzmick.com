@@ -173,6 +173,7 @@ Straight lives in a little container, unaffected by the actual system Emacs."
    site-posts)
 
   (copy-file "CNAME" (path-concat site-dst "CNAME"))
+  (copy-file "callback.html" (path-concat site-dst "callback.html"))
   (site-copy-dir "static"))
 
 ;; Local Variables:
