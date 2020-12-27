@@ -24,7 +24,7 @@ Finally, the L2 cache asks L3 and the L3 cache goes and fetches the data.
 
 Next, assume that all data is written into the L1 cache then propagated out to other caches or main memory as needed.
 When the L1 cache is out of space, it will evict the data into the L2 cache.
-When the L2 cache is out of space, it will event the data into the L3 cache.
+When the L2 cache is out of space, it will evict the data into the L3 cache.
 Finally, if L3 runs out of space, it will evict the data back to main memory.
 
 Generally, each CPU has it's own L1 and L2 cache, but the L3 cache is shared by all of the cores.
