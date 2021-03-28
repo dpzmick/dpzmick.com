@@ -58,6 +58,8 @@ Straight lives in a little container, unaffected by the actual system Emacs."
     :config (load-theme 'base16-tomorrow-night t))
   (use-package rust-mode
     :straight t)
+  (use-package julia-mode
+    :straight t)
 
   ;; packages for actually rendering
   (use-package ht
