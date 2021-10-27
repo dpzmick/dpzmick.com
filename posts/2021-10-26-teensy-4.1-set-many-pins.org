@@ -1,4 +1,4 @@
-#+TITLE: Setting many Teensy 4.1 Pins at the same time
+#+TITLE: Setting Many Teensy 4.1 Pins at the Same Time
 #+DATE: <2021-10-26>
 
 A project I've been working on recently requires that I set a group of pins (4 of them) on a Teensy 4.1 to certain values at roughly the same time.
