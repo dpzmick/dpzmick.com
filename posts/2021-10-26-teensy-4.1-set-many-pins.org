@@ -74,9 +74,9 @@ To write to a port from a program running on the Teensy, the program just needs 
 When the memory system for the microcontroller observes a store to these magic addresses, it will do the electrical magic required to change the voltage on the appropriate pins.
 
 For each port, there are two registers that we care about (and one that we could use, but aren't):
-- A "set" register which turns "on" certain pins mapped to a given port
-- A "clear" register which turns "off" certain pins mapped to a given port
-- A "toggle" register to toggle the value on certain pins mapped to a given port
+- A "set" register which turns "on" certain pins mapped to a given port (any pins that are already "on" stay "on")
+- A "clear" register which turns "off" certain pins mapped to a given port (any pins that are already "off" stay "off")
+- A "toggle" register to toggle the value on certain pins mapped to a given port (didn't use this one, but could have)
 
 When writing to each of these registers, we supply a bitmask of the pins to modify.
 For example, we could write a mask like =1010= to some "set" register to turn on every other pin, then write =1010= to a "clear" register to turn them all off again.
@@ -87,21 +87,21 @@ int state = 0;
 while( 1 ) {
   if( state ) {
     assign_to_set_register( 0b1000 ); // turn on Pin 1
-    assign_to_set_register( 0b1100 ); // turn on Pin 1 and 2
-    assign_to_set_register( 0b1110 ); // turn on Pin 1, 2, and 3
-    assign_to_set_register( 0b1111 ); // turn on Pin 1, 2, 3, and 4
+    assign_to_set_register( 0b0100 ); // turn on Pin 2 (Pin 1 stays on)
+    assign_to_set_register( 0b0010 ); // turn on Pin 3 (Pin 1 and 2 stay on)
+    assign_to_set_register( 0b0001 ); // turn on Pin 4 (Pin 1, 2, and 3 stay on)
   }
   else {
-    assign_to_clear_register( 0b1000 ); // turn on Pin 1
-    assign_to_clear_register( 0b1100 ); // turn on Pin 1 and 2
-    assign_to_clear_register( 0b1110 ); // turn on Pin 1, 2, and 3
-    assign_to_clear_register( 0b1111 ); // turn on Pin 1, 2, 3, and 4
+    assign_to_clear_register( 0b1000 ); // turn off Pin 1 (Pin 2, 3, 4 stay on)
+    assign_to_clear_register( 0b0100 ); // turn off Pin 2 (Pin 3, and 4 stay on)
+    assign_to_clear_register( 0b0010 ); // turn off Pin 3 (Pin 4 stays on)
+    assign_to_clear_register( 0b0001 ); // turn off Pin 4
   }
 }
 #+end_src
 
 Expressed this way, it looks really silly!
-We should clearly just turning every pin on in the first assignment (we'll get there, be patient).
+We should clearly just turn on every pin on in the first assignment (we'll get there, be patient).
 
 Inspecting the generated assembly code (which is actually how I figured out what is going on), we can see this behavior:
 #+begin_src asm
