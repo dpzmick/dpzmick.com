@@ -72,6 +72,10 @@ Straight lives in a little container, unaffected by the actual system Emacs."
     :straight t)
   (require 'org-element)
 
+  ;; see notes on the uuid generation function below
+  (use-package uuidgen
+    :straight t)
+
   ;; Don't do much with the theme. We'll generate the entire theme using
   ;; css from our emacs color scheme. This tells htmlize to use css
   ;; classes to annotate the stuff it would have generated colors for.
@@ -79,14 +83,22 @@ Straight lives in a little container, unaffected by the actual system Emacs."
   (setq org-html-htmlize-output-type 'css)
   (setq org-export-with-sub-superscripts nil))
 
+;; NOTE, was using uuidgen command line as:
+;;  (let ((cmd (format "uuidgen --namespace %s --name %s --sha1"
+;;                         site-root-uuid
+;;                         (file-name-base filename))))
+;;
+;; but macOS uuidgen is much older than the one one I had on linux (that
+;; actually supported this)
+;;
+;; switched to an elisp library to break the dependency
+;;
+;; FIXME should consider normalizing case on the filenames?
+;; also on macOS the FS is not case sensitive
+
 (defun generate-unique-id (filename)
   "Generate a unique id for FILENAME. Stable as long as the SITE-ROOT-UUID doesn't change."
-  (with-temp-buffer
-    (shell-command (format "uuidgen --namespace %s --name %s --sha1"
-                           site-root-uuid
-                           (file-name-base filename))
-                   t)
-    (string-trim (buffer-string))))
+  (uuidgen-3 site-root-uuid (file-name-base filename)))
 
 (defun render-post-html (filename)
   "Render the post described in FILENAME to html in a string."

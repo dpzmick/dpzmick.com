@@ -1,4 +1,4 @@
-#+TITLE: Understaning Pin (for C and C++ Developers)
+#+TITLE: Understanding Pin (for C and C++ Developers)
 #+DATE: <2019-11-15>
 
 [[https://doc.rust-lang.org/std/pin/][Pin]] is pretty important for Rust's recently-released =async.await=
@@ -208,7 +208,7 @@ error[E0505]: cannot move out of `a` because it is borrowed
 
 Rust is telling us that it knows we moved the value, and, since we
 moved it, we can't use it anymore. What does this mean though? What is
-actually going?
+actually going on?
 
 Let's try to find out with some unsafe and undefined-behavior inducing
 Rust. The first time I tried something like this, I wasn't sure what
@@ -224,9 +224,11 @@ to expect, but hopefully this example is clear.
   }
 #+end_src
 
-This prints "1" because the compiler reused the stack space used by
-the object named =a= to store the object named =b=. There was no
-"empty valid husk" left behind.
+This code is UB, so the output may not be stable. At the time this article was
+written though, this prints "1" because the compiler reused the stack space used
+by the object named =a= to store the object named =c=. Unlike C++, where an
+"empty husk" of =a= would need to be left behind, after =a= is moved, the
+compiler "knows" that no one can access it anymore, so it can reuse the storage.
 
 This behavior is very different from the C++ move. The Rust compiler
 knows about the move and can take advantage of the move to save some
@@ -300,10 +302,9 @@ better in C++ too.
   }
 #+end_src
 
-The problem now is that we can't define a custom move constructor. If
-this struct is ever moved (including the move-by-=memcpy= in
-swap/replace), the pointers stored will be point to the wrong piece of
-memory.
+The problem now is that we can't define a custom move constructor. If this
+struct is ever moved (including the move-by-=memcpy= in swap/replace), the
+pointers stored will point to the wrong piece of memory.
 
 The rust solution to this is to mark your type as =!Unpin=.
 
