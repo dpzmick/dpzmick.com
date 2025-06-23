@@ -51,30 +51,33 @@ Straight lives in a little container, unaffected by the actual system Emacs."
     (load bootstrap-file))
 
   (straight-use-package 'use-package)
+  (setq straight-use-package-by-default t)
 
   ;; org export uses color schemes from emacs and emacs syntax highlighters
+  (straight-use-package 'base16-theme)
   (use-package base16-theme
-    :straight t
-    :config (load-theme 'base16-tomorrow-night t))
-  (use-package rust-mode
-    :straight t)
-  (use-package julia-mode
-    :straight t)
+   :demand t
+   :config (load-theme 'base16-tomorrow-night t))
+  (straight-use-package 'rust-mode)
+  (use-package rust-mode)
+  (straight-use-package 'julia-mode)
+  (use-package julia-mode)
 
   ;; packages for actually rendering
-  (use-package ht
-    :straight t)
-  (use-package mustache
-    :straight t)
-  (use-package org
-    :straight t)
-  (use-package htmlize
-    :straight t)
+  (straight-use-package 'ht)
+  (use-package ht :demand t)
+
+  (straight-use-package 'mustache)
+  (use-package mustache :demand t)
+  (straight-use-package 'org)
+  (use-package org)
+  (straight-use-package 'htmlize)
+  (use-package htmlize)
   (require 'org-element)
 
   ;; see notes on the uuid generation function below
-  (use-package uuidgen
-    :straight t)
+  (straight-use-package 'uuidgen)
+  (use-package uuidgen :demand t)
 
   ;; Don't do much with the theme. We'll generate the entire theme using
   ;; css from our emacs color scheme. This tells htmlize to use css
