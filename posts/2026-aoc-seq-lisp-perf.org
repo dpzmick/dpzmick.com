@@ -1,0 +1,270 @@
+#+OPTIONS: not-ready: t
+#+PROPERTY: header-args :eval never-export
+
+#+BEGIN_EXPORT html
+<style>
+.results { width: 30% }
+</style>
+#+END_EXPORT
+
+#+TITLE: Emacs Lisp Performance Oddity
+#+DATE: <2026-01-19>
+
+I wrote my 2025 Advent of Code solutions in Emacs Lisp.
+My Emacs Lisp style was not very lispy or functional.
+I'll discuss this more, and why, in a future post.
+
+In this post, we will discuss a performance mistake I consistently made in my solutions with two examples.
+
+* argmax
+I wrote this bit of code to find the location of the max element in a vector:
+#+begin_src elisp
+(cl-loop for i from 0 below (length vec)
+         with maxidx = nil
+         do (when (or (not maxidx)
+                      (> (aref vec i) (aref vec maxidx)))
+              (setq maxidx i))
+         finally return maxidx)
+#+end_src
+
+Claude provided this example which uses a fold/reduce, which is "more idiomatic":
+#+begin_src elisp
+  (car (seq-reduce
+        (lambda (acc i)
+          (if (or (not (car acc))
+                  (> (aref vec i) (aref vec (car acc))))
+              (cons i (cdr acc))
+            acc))
+        (number-sequence 0 (1- (length vec)))
+        (cons nil nil)))
+#+end_src
+
+But, after producing this example, Claude said "the fold is arguable worse."
+I certainly think so, for a few reasons:
+1. the accumulation term =(cons nil nil)= is awkward because the purpose of each element is never specified. You have to read through all the other indexing gobbledygook to figure out that its =(cons max-idx max-val)=.
+2. There's a temporary =(number-sequence ...)= array being allocated/deleted just to iterate over it.
+3. =(aref vec (car acc))= you can't tell me this is readable!
+
+The correctly-idiomatic answer turns out to be much simpler (though behavior for ties is slightly different):
+#+begin_src elisp
+(seq-position vec (seq-max vec))
+#+end_src
+
+This looks like it scans the vector twice.
+Both of the above do one scan (but the =reduce= option creates a potentially giant one then scans both).
+Let us take a closer look.
+
+=seq-position= looks as you'd expect:
+#+begin_src elisp
+(cl-defgeneric seq-position (sequence elt &optional testfn)
+  (let ((index 0))
+    (catch 'seq--break
+      (seq-doseq (e sequence)
+        (when (funcall (or testfn #'equal) e elt)
+          (throw 'seq--break index))
+        (setq index (1+ index)))
+      nil)))
+#+end_src
+
+=seq-max= converts to a list first (copying it), then calls a =C= builtin =max=.
+#+begin_src elisp
+(cl-defgeneric seq-max (sequence)
+  (apply #'max (seq-into sequence 'list)))
+#+end_src
+
+So, the =seq= solution actually does *three* passes, which should obviously be much worse than the =cl-loop= version, right?
+Claude said yes, my intuition is probably correct: "the =cl-loop= is probably faster."
+
+Let's check!
+
+#+name: timeit-setup-argmax
+#+begin_src elisp :exports none :results silent
+  (defun timeit (name f &optional reps)
+    (garbage-collect)
+    (let* ((reps (or reps 100))
+           (time (car (benchmark-run reps (funcall f)))))
+      (cons name time)))
+
+  (defun timeit-report (results)
+      (let ((fastest (apply #'min (mapcar #'cdr results))))
+        (concat
+         "| Method | Time | Relative |\n"
+         "|-|\n"
+         (mapconcat
+          (lambda (r)
+            (format "| %-20s | %.4fs | %.1fx |" (car r) (cdr r) (/ (cdr r) fastest)))
+          results "\n"))))
+
+  (defmacro timeit* (name reps &rest body)
+    `(timeit ,name (lambda () ,@body) ,reps))
+
+(defun argmax-loop (vec)
+  (cl-loop for i below (length vec)
+           with m = nil
+           when (or (not m) (> (aref vec i) (aref vec m)))
+           do (setq m i)
+           finally return m))
+
+(defun argmax-builtin (vec)
+  (seq-position vec (seq-max vec)))
+
+(defun argmax-loop-native (vec)
+  (cl-loop for i below (length vec)
+           with m = nil
+           when (or (not m) (> (aref vec i) (aref vec m)))
+           do (setq m i)
+           finally return m))
+
+(defun argmax-builtin-native (vec)
+  (seq-position vec (seq-max vec)))
+
+;; Pre-generate random test data
+(defvar bench-vec-random
+  (vconcat (cl-loop for _ below 50000 collect (random 1000000))))
+#+end_src
+
+#+begin_src elisp :noweb no-export :results raw :exports both
+<<timeit-setup-argmax>>
+(timeit-report
+  (list
+    (timeit* "cl-loop" 100 (argmax-loop bench-vec-random))
+    (timeit* "seq-*" 100 (argmax-builtin bench-vec-random))))
+#+end_src
+
+#+ATTR_HTML: :class results
+#+RESULTS:
+| Method  | Time    | Relative |
+|---------+---------+----------|
+| cl-loop | 0.9196s |     4.2x |
+| seq-*   | 0.2169s |     1.0x |
+
+Well, hmm, I guess the fast =C= builtins make a big difference?
+If we native compile, that should eliminate a bunch of the overhead, right?
+
+#+begin_src elisp :noweb no-export :results raw :exports both
+<<timeit-setup-argmax>>
+(native-compile 'argmax-loop-native)
+(native-compile 'argmax-builtin-native)
+
+(timeit-report
+  (list
+    (timeit* "cl-loop" 100 (argmax-loop-native bench-vec-random))
+    (timeit* "seq-*" 100 (argmax-builtin-native bench-vec-random))))
+#+end_src
+
+#+ATTR_HTML: :class results
+#+RESULTS:
+| Method  | Time    | Relative |
+|---------+---------+----------|
+| cl-loop | 0.4801s |     2.3x |
+| seq-*   | 0.2114s |     1.0x |
+
+Closer, but the =cl-loop= is still a lot slower.
+Fascinating.
+This is not at all what I was expecting!
+
+So far, the best explanation I have is that the running the loop and compares in =C= helps a lot, but Claude and ChatGPT can't make up their mind about the loop being the problem, boxing/unboxing being the problem, or frequent switching between the =C= runtime and lisp being the problem.
+This warrants more investigation, or some expert feedback.
+
+* sum
+I also apparently wrote this:
+#+begin_src elisp
+(cl-loop for c across vec sum c)
+#+end_src
+
+Instead of any of these:
+#+begin_src elisp
+(seq-reduce #'+ vec 0)
+(cl-reduce #'+ vec)
+(apply #'+ (append vec nil))
+#+end_src
+
+=seq-reduce= and =cl-reduce= seem like they should do roughly the same thing, so I'm just testing =seq-reduce=.
+I believe there are argument count limits for =apply=, but it seems to be working.
+If what we learned last time is correct, then =apply= solution will probably run fastest, despite having to convert the vec to a list first.
+
+Let's check!
+
+#+name: timeit-setup-sum
+#+begin_src elisp :exports none :results silent
+  (defun timeit (name f &optional reps)
+    (garbage-collect)
+    (let* ((reps (or reps 100))
+           (time (car (benchmark-run reps (funcall f)))))
+      (cons name time)))
+
+  (defun timeit-report (results)
+      (let ((fastest (apply #'min (mapcar #'cdr results))))
+        (concat
+         "| Method | Time | Relative |\n"
+         "|-|\n"
+         (mapconcat
+          (lambda (r)
+            (format "| %-20s | %.4fs | %.1fx |" (car r) (cdr r) (/ (cdr r) fastest)))
+          results "\n"))))
+
+  (defmacro timeit* (name reps &rest body)
+    `(timeit ,name (lambda () ,@body) ,reps))
+
+(defun sum-cl-loop (vec)
+  (cl-loop for c across vec sum c))
+
+(defun sum-seq-reduce (vec)
+  (seq-reduce #'+ vec 0))
+
+(defun sum-apply (vec)
+  (apply #'+ (append vec nil)))
+
+(defun sum-cl-loop-native (vec)
+  (cl-loop for c across vec sum c))
+
+(defun sum-seq-reduce-native (vec)
+  (seq-reduce #'+ vec 0))
+
+;; Pre-generate random test data
+(defvar bench-vec-random
+  (vconcat (cl-loop for _ below 50000 collect (random 1000000))))
+#+end_src
+
+#+begin_src elisp :noweb no-export :results raw :exports both
+<<timeit-setup-sum>>
+(timeit-report
+  (list
+    (timeit* "cl-loop" 100 (sum-cl-loop bench-vec-random))
+    (timeit* "seq-reduce" 100 (sum-seq-reduce bench-vec-random))
+    (timeit* "apply" 100 (sum-apply bench-vec-random))))
+#+end_src
+
+#+ATTR_HTML: :class results
+#+RESULTS:
+| Method     | Time    | Relative |
+|------------+---------+----------|
+| cl-loop    | 5.4681s |    44.3x |
+| seq-reduce | 0.1725s |     1.4x |
+| apply      | 0.1233s |     1.0x |
+
+And native compiled:
+
+#+begin_src elisp :noweb no-export :results raw :exports both
+<<timeit-setup-sum>>
+(native-compile 'sum-cl-loop-native)
+(native-compile 'sum-seq-reduce-native)
+(timeit-report
+  (list
+    (timeit* "cl-loop" 100 (sum-cl-loop-native bench-vec-random))
+    (timeit* "seq-reduce" 100 (sum-seq-reduce-native bench-vec-random))
+    (timeit* "apply" 100 (sum-apply bench-vec-random))))
+#+end_src
+
+#+ATTR_HTML: :class results
+#+RESULTS:
+| Method     | Time    | Relative |
+|------------+---------+----------|
+| cl-loop    | 0.1382s |     1.1x |
+| seq-reduce | 0.1715s |     1.4x |
+| apply      | 0.1202s |     1.0x |
+
+Wow!
+I guess getting into =C= to run the loop makes a big difference in Emacs Lisp, even when copying (also C) a 50k element vector to get there.
+
+To inspect the source for =timeit= and other support code, take a look at the raw org file on GitHub: [[https://github.com/dpzmick/dpzmick.github.com/blob/master/posts/2026-aoc-seq-lisp-perf.org]]

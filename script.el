@@ -142,10 +142,19 @@ Straight lives in a little container, unaffected by the actual system Emacs."
                (ht (nm (substring val 1 -1)))
              (ht (nm val)))))))))
 
+(defun site-post-disabled-p (filename)
+  (with-temp-buffer
+    (insert-file-contents filename)
+    (org-mode)
+    (let* ((kvs (org-collect-keywords '("NOPUBLISH")))
+           (vals (cdr (assoc "NOPUBLISH" kvs))))
+      (member "t" vals))))
+
 (defun site-get-posts (posts-directory)
-  "Find all org files in POSTS-DIRECTORY."
-  (let ((files (directory-files posts-directory t "^[^\.]+.*.org")))
-    (mapcar #'get-props files)))
+  "Find all publishable org files in POSTS-DIRECTORY."
+  (let* ((files (directory-files posts-directory t "^[^\.].*\\.org$"))
+         (enabled (seq-remove #'site-post-disabled-p files)))
+    (mapcar #'get-props enabled)))
 
 (defun site-copy-dir (dir &optional target)
   "Copy a directory from DIR to resulting output `site-dst`/TARGET."

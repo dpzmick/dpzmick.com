@@ -1,3 +1,4 @@
+#+NOPUBLISH: t
 #+PROPERTY: header-args :eval never-export
 
 #+BEGIN_EXPORT html
@@ -53,6 +54,8 @@ Mutation seems to be everywhere in Emacs Lisp.
 I looked up best practices surrounding mutability when starting day 1.
 ChatGPT recommended that I just mutate, because that's idiomatic, but Claude is not a fan of the mutation heavy style I took.
 For these AoC problems, many of which have large-ish 2d grids which are sparsely updated, /I think/ mutation is the right choice, but maybe I took it too far.
+
+I've also noticed when pasting code into ChatGPT especially that it produces extremely mutabilitity utilizing code.
 
 *** Control Flow
 Emacs lisp is missing tail recursion optimization, but still has cons cells and other recursive structures as a core primitive.
@@ -441,3 +444,5 @@ ALSO when I asked claude "what is my value as a programmer given all of this", i
 - aoc this year was good for me to do, and doable
 - programming is still fun
 - ai something
+- bummer is that AI is good at the "joyful" stuff, wiritng code, thinking about style, etc
+  - and the hard stuff like defining problem is all that's left?
