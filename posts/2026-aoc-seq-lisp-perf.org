@@ -267,4 +267,4 @@ And native compiled:
 Wow!
 I guess getting into =C= to run the loop makes a big difference in Emacs Lisp, even when copying (also C) a 50k element vector to get there.
 
-To inspect the source for =timeit= and other support code, take a look at the raw org file on GitHub:  [[https://github.com/dpzmick/dpzmick.github.com/blob/master/posts/2026-aoc-seq-lisp-perf.org]]
+To inspect the source for =timeit= and other support code, take a look at the raw org file on GitHub:  https://github.com/dpzmick/dpzmick.com/blob/master/posts/2026-aoc-seq-lisp-perf.org
