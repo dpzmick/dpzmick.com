@@ -1,0 +1,443 @@
+#+PROPERTY: header-args :eval never-export
+
+#+BEGIN_EXPORT html
+<style>
+.results { width: 30% }
+</style>
+
+#+END_EXPORT
+
+#+TITLE: AoC Self-Reflections
+#+DATE: <2026-01-19>
+
+This year, I decided to challenge myself to fully complete the [[https://adventofcode.com/][Advent of Code]] challenges.
+I have never completed Advent of Code before, despite started it almost every year.
+Why target completion this year?
+
+** Practical reasons
+- Only 12 problems - Finishing a problem per day early December is hard, catching up later in the holidays is even harder. With only 12 challenges I felt like I'd have a finally have a chance of finishing every problem before Jan 1. I'm not skilled as a competitive programmer so I never keep up.
+- I am out of practice on algorithms questions.
+
+** Personal Reasons
+- I wanted to spend some time programming "joyful", in something a little bit quirky. I wanted to spend time in a different programming environment than my day job's C and Python.
+- Want to Finish Something and enjoy the sense of completion.
+- AI is "ruining programming", want to remember /why/ (and if) I enjoy /programming/, and explore what styles of problems, problem solving, and keyboard typing appeal to me
+
+For these personal reasons, I decided to use Emacs Lisp.
+The development environment (docs, profiler, debugger all directly in emacs) is very different than C or Python, and Lisps are typically pretty "joyful."
+
+* Emacs Lisp
+Let's start with the easy section, how was Emacs Lisp for this set of problems?
+Overall, it's simply not a great choice for this style of problem, and I may have made poor stylistic choices that made the experience worse.
+
+** The Language
+I'm not sure I get it.
+I've never used common lisp, but I've written a fair amount scheme, racket, and clojure.
+According to Claude, what I ended up doing was more Common Lisp than Emacs Lisp:
+#+begin_quote
+You're writing Common Lisp that happens to run in Emacs, not Emacs Lisp.
+#+end_quote
+
+And it thinks:
+#+begin_quote
+You're embracing the CL-compatibility layer while fighting "true" Elisp idioms. This is a reasonable choice - cl-loop is more powerful than dolist - but it means your code looks like CL, not Elisp.
+#+end_quote
+
+I struggled with three things throughout the AoC problems:
+1. Mutability - it seems idiomatic in elisp, and feels "natural" for many of the AoC problems.
+3. Control Flow - my imperative style didn't map well to the language's imperative tools, and lack of tail call optimization means I can't necessarily write everything the functional recursive way.
+2. Iteration Constructs - loops? sequences and maps? recursion?
+
+*** Mutability
+Mutation seems to be everywhere in Emacs Lisp.
+I looked up best practices surrounding mutability when starting day 1.
+ChatGPT recommended that I just mutate, because that's idiomatic, but Claude is not a fan of the mutation heavy style I took.
+For these AoC problems, many of which have large-ish 2d grids which are sparsely updated, /I think/ mutation is the right choice, but maybe I took it too far.
+
+*** Control Flow
+Emacs lisp is missing tail recursion optimization, but still has cons cells and other recursive structures as a core primitive.
+Working with cons cells to stitch complex structures, using imperative control flow rather than recursion, is, in my opinion, awkward.
+
+My recent imperative style aggressively uses early exits (continue, break, early return) to filter out cases as soon as possible.
+The goal is to keep the main business logic as straight-line code with minimal indentation.
+Control flow exists primarily to remove complexity from the highly-read happy path, not to express it inline.
+I try to avoid (through system design and concern separation), /business logic/ conditionals, as they tarnish the straight line.
+ChatGPT says I should call this "guard-clause driven, straight-line development", so I guess I'll call it that.
+
+In functional languages, this means I tend to have lots of early returns from recursive functions, and the "straight line" path is all recursive tail calls.
+Without TCO, deep recursion risks stack overflow, so I felt pushed toward iteration.
+
+*** Iteration Style
+Functional-style iteration is usually done by stitching together maps, folds, etc.
+But, maps, folds, etc, don't play super nicely with heavy mutation.
+Since I'm iterating, and mutating a lot, I found myself using a lot of =cl-loop=.
+
+=cl-loop= is powerful, I can avoid copies (I think?), it has flexible accumulation clauses, and the =if/when/unless= set of clauses, which map fantastically well to my imperative style.
+However, I feel like doing a bunch of fancy looping control flow in a language that's sort of functional, via a /macro/, is a bit silly.
+If I can't embrace the functional style, why am I using emacs lisp?
+
+Claude also doesn't like my heavy use of =cl-loop=.
+
+For example, it points out that I did this to find location of max element in a vector:
+#+begin_src elisp
+(cl-loop for i from 0 below (length vec)
+         with maxidx = nil
+         do (when (or (not maxidx)
+                      (> (aref vec i) (aref vec maxidx)))
+              (setq maxidx i))
+         finally return maxidx)
+#+end_src
+
+Claude says something like this would be more idiomatic:
+#+begin_src elisp
+  (car (seq-reduce
+        (lambda (acc i)
+          (if (or (not (car acc))
+                  (> (aref vec i) (aref vec (car acc))))
+              (cons i (cdr acc))
+            acc))
+        (number-sequence 0 (1- (length vec)))
+        (cons nil nil)))
+#+end_src
+
+The fold version is /way less clear/, I think, but maybe I'm out of practice.
+The temp =(number-sequence 0 ..)= list that gets created bugs me, though I'm not actually sure if =cl-loop= isn't doing the same.
+Claude agrees with me on readability though, saying: "The fold is arguably worse here."
+
+There's a maybe better solution to both that would skip the problems:
+#+begin_src elisp
+(seq-position vec (seq-max vec))
+#+end_src
+
+This looks pretty good, but it does have to scan twice.
+Does that matter?
+
+Let's test it, with a reasonably large random vector (50k elements)!
+
+#+name: timeit-setup
+#+begin_src elisp :exports none :results silent
+  (defun timeit (name f &optional reps)
+    (garbage-collect)
+    (let* ((reps (or reps 100))
+           (time (car (benchmark-run reps (funcall f)))))
+      (cons name time)))
+
+  (defun timeit-report (results)
+      (let ((fastest (apply #'min (mapcar #'cdr results))))
+        (concat
+         "| Method | Time | Relative |\n"
+         "|-|\n"
+         (mapconcat
+          (lambda (r)
+            (format "| %-20s | %.4fs | %.1fx |" (car r) (cdr r) (/ (cdr r) fastest)))
+          results "\n"))))
+
+  (defmacro timeit* (name reps &rest body)
+    `(timeit ,name (lambda () ,@body) ,reps))
+
+(defun argmax-loop (vec)
+  (cl-loop for i below (length vec)
+           with m = nil
+           when (or (not m) (> (aref vec i) (aref vec m)))
+           do (setq m i)
+           finally return m))
+
+(defun argmax-builtin (vec)
+  (seq-position vec (seq-max vec)))
+
+(defun argmax-loop-native (vec)
+  (cl-loop for i below (length vec)
+           with m = nil
+           when (or (not m) (> (aref vec i) (aref vec m)))
+           do (setq m i)
+           finally return m))
+
+(defun argmax-builtin-native (vec)
+  (seq-position vec (seq-max vec)))
+
+;; Pre-generate random test data
+(defvar bench-vec-random
+  (vconcat (cl-loop for _ below 50000 collect (random 1000000))))
+#+end_src
+
+#+begin_src elisp :noweb no-export :results raw :exports both
+<<timeit-setup>>
+(timeit-report
+  (list
+    (timeit* "cl-loop" 100 (argmax-loop bench-vec-random))
+    (timeit* "seq-*" 100 (argmax-builtin bench-vec-random))))
+#+end_src
+
+#+ATTR_HTML: :class results
+#+RESULTS:
+| Method  | Time    | Relative |
+|---------+---------+----------|
+| cl-loop | 0.9196s |     4.2x |
+| seq-*   | 0.2169s |     1.0x |
+
+
+Well, hmm, I guess the fast =C= builtins make a big difference?
+Looking at what =seq.el= is doing, the =max= operation is dispatched to =C= builtins.
+But, to dispatch to C, we had to copy into a new structure.
+So, this is actually 3 passes over the structure, I guess 3 really fast passes?
+
+What about with native compilation of the loop?
+
+#+begin_src elisp :noweb no-export :results raw :exports both
+<<timeit-setup>>
+(native-compile 'argmax-loop-native)
+(native-compile 'argmax-builtin-native)
+
+(timeit-report
+  (list
+    (timeit* "cl-loop" 100 (argmax-loop-native bench-vec-random))
+    (timeit* "seq-*" 100 (argmax-builtin-native bench-vec-random))))
+#+end_src
+
+#+ATTR_HTML: :class results
+#+RESULTS:
+| Method  | Time    | Relative |
+|---------+---------+----------|
+| cl-loop | 0.4801s |     2.3x |
+| seq-*   | 0.2114s |     1.0x |
+
+Closer, but the =cl-loop= is still a lot slower.
+Fascinating, and this is not at all what I was expecting.
+
+Maybe I should be embracing more folding and mapping over sequences, which I used to be pretty good at.
+Maybe I missed the point of practicing different programming styles, jammed my imperative/mutable style into it, and learned nothing!
+
+** The Libraries
+I didn't use any external packages, because I didn't want to break my editor messing with the packages.
+The built in libraries are great, though a bit inconsistent (=elt= vs =nth= vs =aref= argument order).
+There is a built-in function for many operations, though sometimes finding them is a bit tricky without reading all of =seq.el= over and over again (or asking an LLM).
+
+I don't feel like I took advantage of the text processing tools in emacs, even though I needed to parse a lot of text.
+Only in one problem did I drop the input into a buffer then walk it with a regex for input parsing.
+Standard string splits and regex on variables all worked fine, but when I needed to drop it into a buffer and try it out it was a pleasant experience.
+
+FIXME code sample? not sure its needed
+
+** Tools and Workflow
+All of the developer tools are great (profilers, debuggers, help system, etc).
+The living-system has the classic mixed bag set of problems.
+It's great to be able to inspect state, edit anything, run anything in any order.
+But, just like a notebook, it's easy to get yourself in a weird mixed up state.
+Fortunately, running =eval-buffer= rather than piecemeal evals mostly sovled this problem.
+
+The most powerful part of working in emacs is the ability to pop up a buffer with some internal state, and just look at it / interact with it.
+
+For example, want to inspect a matrix?
+Just pop up a buffer and look at it:
+#+begin_src elisp
+(defun show-mat (m)
+  (with-current-buffer (get-buffer-create "*mat*")
+    (erase-buffer)
+    (cl-loop for r from 0 below (mat-rows m) do
+             (cl-loop for c from 0 below (mat-cols m) do
+                      (insert (format "%2d" (mat-ref m r c))))
+             (insert "\n"))
+    (goto-char (point-min))
+    (pop-to-buffer (current-buffer))))
+#+end_src
+
+This is a fantastic level of introspection capability.
+
+Additionally, my entire workflow—fetching input files, generating solution files, reading problem inputs, natively compiling and running the solutions, validating example cases against expected outputs, and executing the final solution while copying the result to the clipboard for submission to the AoC web app—was wired directly into the editor via a few nice interactive functions.
+
+I want to find a way to use emacs in my day job to /drive/ more of the workflows I use on a regular basis, and wire up more system state into emacs for deeper control.
+
+Despite my complaints and issues with the language itself, programming in this /environment/ was extremely joyful.
+
+** Language Conclusion
+The environment was joyful and scratched most of the "programming can be fun" itch I had.
+I'm not sure I've figured out the language yet.
+I can't read any of my code a few weeks later.
+
+Elisp is probably the wrong choice for AoC.
+Half of the problems/algorithms genuinely need mutation (Gaussian elimination, flood fill); writing these solutions with maps and folds would be awkward and probably slow (but as we've seen my intuitions about what's fast and slow might be wrong).
+
+I'm happy to have learned more of the language; I will hopefully be using a lot more of it for workflow automation.
+
+#+begin_quote
+You oscillate between:
+
+“Elisp is wrong for AoC”
+
+“AoC rewards mutation-heavy solutions”
+
+These are compatible, but you don’t explicitly reconcile them. Readers may wonder:
+
+If mutation-heavy problems fit AoC, why is Elisp wrong—when Elisp is mutation-friendly?
+
+This is fixable with one explicit sentence clarifying that the language ergonomics + performance model, not mutability per se, were the issue.
+
+The AI section gradually shifts from experience report → theory of human value, without clearly signaling the transition. It feels like a new essay starting inside the old one.
+#+end_quote
+
+* AoC 2025 Experience
+12 problems was great.
+I'm thrilled that I was able to finish them all by Jan 1.
+
+Now that I've finished them, I am reminded that:
+1. I am not a competitive programmer, and probably never will be.
+2. This style of challenge is fun, but I'm left looking for something /slightly/ different.
+
+I tended to find myself trying to solve larger/harder/more-general problems than what was required.
+Perhaps this is a personality flaw, like over-optimizing to avoid copies (and getting it wrong), and I certainly should have read some of the questions more carefully (i.e. day 6, which I got stuck on for way too long because I didn't read carefully).
+
+But, I also think I would enjoy a set of problems that reward the performance and scalability of the solution.
+Someone on reddit said it this way:
+#+begin_quote
+I would definitely enjoy a third star with a bigger input that requires an efficient algorithm to run in a reasonable time.
+#+end_quote
+
+Fortunately, that's what my day job is for!
+
+It was great practice for me to work through these problems, and the trick-question / simpler-than-I-made-them problems are a good reminder to not go overboard and read carefully.
+
+Let's talk about two that I really enjoyed, Day 9 and Day 10.
+
+** Day 9
+This problem asks you to first try and make the largest possible rectangle from a set of points.
+I made a short false start trying to sort by magnitude of the points, then take min/max of the sorted list.
+This doesn't work.
+I switched to brute forcing it, which worked, but was a bit of a letdown.
+I'm still not sure if there's a better way to do this.
+
+Part 2 was much harder. Now we had to find the largest rectangles that fit inside of a region.
+
+With a bit of help from the internet, I figured out this approach:
+1. compress the coordinates to shrink the size of the structures
+2. flood-fill to find the contiguous region
+3. compute a prefix-sum down the x direction, treating "in region" as 1, and "out of region" as zero
+4. make a list of all possible rectangles, and check if they are valid rectangels using the prefix sum we previously computed
+5. find the largest by area from the valid list
+
+Here's a visual example in ascii art from my solution:
+#+begin_src elisp
+;; pick a pair of red points [] and check if they make a rectangle
+;;
+;;    0    0    0    0    0    0 
+;;    0    0   (1)   2   (3)   3
+;;    0   [1]  (2)   3    4    4
+;;    0   (1)   2   (3)   4    4
+;;    0    0    0   (1)  [2]   2
+;;    0    0    0    0    0    0
+;;
+;; To check if (ax,ay) and (bx,by) is a valid rectangle, just have to work down
+;; the y direction and check that the prefix sum indicates if the full region
+;; was filled.
+;;
+;; for y from ay to by:
+;;   vec[bx] = vec[ax] + (bx-ax)
+#+end_src
+
+Traditionally I would have stayed away from this style of problem because all of the coordinate indexing is fiddly.
+But, since I had set the goal to finish, I actually had to do it.
+
+I was pleasantly suprised at how much fun the problem was, especially since I could get AI to fix all the fiddly coordinate bugs.
+The flood-fill was fun to write, and the coordinate compression trick to speed it all up was nice too.
+
+In the end, I'm still not happy with the performance of my code; the solution takes about 1 second to run.
+This is a problem that rewarded using correct structures and algorithms.
+
+** Day 10
+Day 10 is a fantastic problem.
+Part 1 is [[https://en.wikipedia.org/wiki/Lights_Out_(game)][Lights Out]], and part 2 is a really interesting generalization of part 1.
+
+Initially I thought I could get away with a memoized search of the full space, but realized this solution would never work.
+Perhaps there's a clever way to prune the state space that I did not find which would make this work.
+
+This also required looking some stuff up.
+I did figure out that it was a linear system and that this is an ILP problem.
+But, I could not remember exactly how to write ILP solver.
+Looking it up, I realized there's a ton of solutions here:
+1. Z3 is popular
+2. Hand rolled Gaussian elimination + a small search at the end
+3. "Bifurcation" and a reduction to part1, see [[ https://www.reddit.com/r/adventofcode/comments/1pk87hl/2025_day_10_part_2_bifurcate_your_way_to_victory/][reddit]]. I still don't understand this.
+
+Apparently doing elimination, followed by brute force, rather than anything more sophisticated, is a common thing approach in competitive programming.
+
+Even with a rough guide for how to solve the problem, I still had plenty of problem solving to do on my own.
+For example, keeping everything in integer needed a bit of work.
+
+I still would like to spend some time exploring this problem.
+For example, part 1 could probably be solved using the same techniques as part 2, just in GF(2).
+
+* AI
+I used AI extensively while working through Advent of Code this year.
+Not to generate full solutions, but as a rubber duck, and occasionally tried using it to unstuck when I though I had taken a wrong turn.
+
+The experience was mixed.
+
+For local issues and bugs, like off-by-one errors, and coordinate mapping mistakes, AI was extremely effective.
+In particular, once I had a mostly correct solution, it was very good at fixing small logical errors that would have otherwise taken me a frustrating amount of time to track down.
+Using the AI tools in this capability was a bit productivity boost.
+
+As a search engine, the AI tools where helpful.
+I could /describe/ a problem and get names of things to go lookup on other search engines.
+Human generated content (like lecture slides) explaining algorithms seemed stronger than the Claude/ChatGPT explainations.
+
+When my assumptions were wrong the AI tools were much less helpful.
+Claude especially worked hard to write working code without breaking the rules I gave it or assumptions I told it to make, but would never tell me that my assumptions were wrong.
+This happened both in cases like "write this code for me, assuming ..." and "explain how to solve problem ... assuming ....", where I'd give the AIs specific prompts for what to do, but also give them the full text of the problem for context.
+This got terrible results.
+For learning new things, this isn't helpful.
+When learning, making mistakes is a huge part of the process, so a tool that won't be open about "you've messed up" is counter productive.
+
+When asking to optimize, the models also strugged a bit to propose low-level changes rather than algorithmic changes.
+i.e. changing memory order was a huge boost in one of the problems, and claude just kept suggesting algorithmic changes; it never figured out the memory order thing.
+
+I think somewhat related is an observation I've made while having AI tools help with this blog post.
+They seem to "fixate" on specific sentences, snippets, comments, etc, and keep bringing them up over and over again.
+Humans are better able to take the quotes, snippets, comments and convert them to a theme, then remember the theme.
+The AI tools seem to need to continue reminding themselves of the themes they are trying to weave through this document by repeating the specfic quotes and specifc phrases that were important.
+I think this is related to the bad assumptions too, the models just keep repeating the bad assumption back to themselves rather than abstracting or trying to understand the theme of something and discard the specifics.
+GPT-5 et al seem to do a better job at avoiding this specific trap than the Claude family of models.
+
+I think overall lightly using AI on this set of problems was helpful rather than distracting.
+It's good at finding bugs, but, at least in the way I was using it, wasn't great at /helping/ to solve the problems.
+
+There's some weird gray area here, we've seen evidence that AI can perform fantastically when handed the prompts and asked to solve the problems end-to-end.
+When the model is in charge, it can restructure the entire approach at once.
+When it’s assisting, it mostly reacts to what you show it—and that makes it much less likely to challenge your assumptions or redirect you early.
+
+In practice, this meant that AI was most useful after I had done the hard thinking myself.
+Once I had the right mental model, it became an effective tool for turning that model into working code.
+Before that point, it was more likely to reinforce whatever half-formed idea I already had than to replace it with a better one.
+
+What does this mean for me as a programmer?
+AoC problems are extremely well specified, but when I injexted myself into the problem and asked questions / gave false assumptions, I'd removed the calrity from the prompt.
+When clarity was removed, the models performed significantly less well.
+It might be interesting to take each AoC problem, add a few falsehoods into the problems, /then/ try to get the models to solve them.
+
+Where your value actually shows up
+Your value is upstream and downstream of “write the code.”
+You do things like:
+- decide which problems are worth solving at all
+- notice when a problem is mis-specified, underspecified, or misleading
+- choose representations that make future changes survivable
+- trade correctness, performance, clarity, and effort against each other
+- recognize when an apparently “clever” solution is fragile or overfit
+- stop, rethink, and redirect when the current path is wrong
+
+Notice something important:
+- These are exactly the things AI struggled with in your AoC experience.
+  
+You explicitly observed:
+- it didn’t challenge your assumptions
+- it stayed inside the frame you gave it
+- it optimized approaches that should have been abandoned
+- it missed when the problem understanding was wrong
+
+That’s not an accident. Those are not implementation problems—they are judgment problems.
+
+ALSO when I asked claude "what is my value as a programmer given all of this", it said roughly the above, but finished with "for now".
+
+* Overall Conclusion
+- emacs lisp okay
+- tools good
+- aoc this year was good for me to do, and doable
+- programming is still fun
+- ai something
