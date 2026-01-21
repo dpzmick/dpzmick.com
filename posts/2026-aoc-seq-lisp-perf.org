@@ -239,11 +239,14 @@ Let's check!
 #+RESULTS:
 | Method     | Time    | Relative |
 |------------+---------+----------|
-| cl-loop    | 5.4681s |    44.3x |
-| seq-reduce | 0.1725s |     1.4x |
-| apply      | 0.1233s |     1.0x |
+| cl-loop    | 5.6799s |    43.1x |
+| seq-reduce | 0.1793s |     1.4x |
+| apply      | 0.1317s |     1.0x |
 
-And native compiled:
+So, maybe our rule works?
+Though, the =seq-reduce= version isn't that far off from =apply=.
+
+What if we native compile?
 
 #+begin_src elisp :noweb no-export :results raw :exports both
 <<timeit-setup-sum>>
@@ -260,11 +263,15 @@ And native compiled:
 #+RESULTS:
 | Method     | Time    | Relative |
 |------------+---------+----------|
-| cl-loop    | 0.1382s |     1.1x |
-| seq-reduce | 0.1715s |     1.4x |
-| apply      | 0.1202s |     1.0x |
+| cl-loop    | 0.5304s |     4.1x |
+| seq-reduce | 0.1775s |     1.4x |
+| apply      | 0.1291s |     1.0x |
 
 Wow!
-I guess getting into =C= to run the loop makes a big difference in Emacs Lisp, even when copying (also C) a 50k element vector to get there.
+So in this case, the result is a bit different.
+Native compilation seems to make a big difference, but the =C= loop still seems to win.
+Note that I've had some variability in running /this/ specific test, but after a few runs the result is pretty consistent.
+
+The conclusion seems to be calling builtins makes a huge difference.
 
 To inspect the source for =timeit= and other support code, take a look at the raw org file on GitHub:  https://github.com/dpzmick/dpzmick.com/blob/master/posts/2026-aoc-seq-lisp-perf.org
