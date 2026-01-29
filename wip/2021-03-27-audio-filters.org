@@ -1,0 +1,23 @@
+#+TITLE: Audio Programming 102: Basic Filters
+#+DATE: <2021-03-26>
+
+* Audio Filtering
+This post is about audio filters.
+Objective: Provide the bare-minimum tools needed to write filtering software an analyze existing filters.
+Filter design is a topic for later.
+
+Assumes fourier transform.
+
+** What is a digital filter
+*** Definition of a signal
+*** Definition of a digital, LTI filter
+*** Difference equations
+*** Frequency and Phase response
+
+** FIR and IIR filter forms
+** Z-Transform
+** Poles and Zeros
+*** Converting between forms
+
+** Conclusion
+*** Notes about filter design
