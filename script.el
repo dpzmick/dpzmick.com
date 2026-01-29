@@ -153,8 +153,9 @@ Straight lives in a little container, unaffected by the actual system Emacs."
 (defun site-get-posts (posts-directory)
   "Find all publishable org files in POSTS-DIRECTORY."
   (let* ((files (directory-files posts-directory t "^[^\.].*\\.org$"))
-         (enabled (seq-remove #'site-post-disabled-p files)))
-    (mapcar #'get-props enabled)))
+         (enabled (seq-remove #'site-post-disabled-p files))
+         (posts (mapcar #'get-props enabled)))
+    (sort posts (lambda (a b) (string> (ht-get a "DATE") (ht-get b "DATE"))))))
 
 (defun site-copy-dir (dir &optional target)
   "Copy a directory from DIR to resulting output `site-dst`/TARGET."
@@ -180,15 +181,15 @@ Straight lives in a little container, unaffected by the actual system Emacs."
 
   ;; find all of the posts
   ;; each is a hash-table
-  (setq site-posts (site-get-posts "posts")) ;; FIXME sort these
+  (setq site-posts (site-get-posts "posts"))
 
   (setq b (get-string-from-file "templates/index.mustache"))
   (with-temp-file (path-concat site-dst "index.html")
-    (insert (mustache-render b (ht ("posts" (reverse site-posts))))))
+    (insert (mustache-render b (ht ("posts" site-posts)))))
 
   (setq b (get-string-from-file "templates/feed.mustache"))
   (with-temp-file (path-concat site-dst "feed.xml")
-    (insert (mustache-render b (ht ("posts" (reverse site-posts))))))
+    (insert (mustache-render b (ht ("posts" site-posts)))))
 
   (setq b (get-string-from-file "templates/post.mustache"))
   (mapc

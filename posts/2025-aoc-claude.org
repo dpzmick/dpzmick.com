@@ -1,0 +1,67 @@
+#+NOPUBLISH: t
+
+#+TITLE: AoC something
+#+DATE: <2025-12-31>
+
+* Claude experiment
+asked claude to do ai translatiions of the handwritten soltuions
+then do perf test
+
+curious about elisp native compliation speed because it seemed reasonably quick on some of the problems.
+
+We have AI now so asked claude code to pick some interesting problems and port to:
+....
+
+
+ Selected Problems for Benchmarking:
+ - Day 9: Disk defragmentation with array manipulation
+ - Day 10: Graph traversal (BFS/DFS on grids)
+ - Day 11: Path counting with memoized DFS
+ - These were computationally interesting and took non-trivial time
+
+ Implementation Strategy:
+ Two approaches for most languages:
+ 1. "Elisp-mirrored": Direct ports maintaining same data structures and algorithms
+   - Tests how language/runtime performs with same approach
+ 2. "Idiomatic": Leverage language strengths (NumPy, Julia optimizations, etc.)
+   - Tests how much implementation style matters
+
+ Languages Tested:
+ - Elisp (native-compiled) - baseline
+ - Python (both elisp-mirrored and idiomatic)
+ - Lua (LuaJIT) - elisp-mirrored only
+ - Julia (both elisp-mirrored and idiomatic)
+
+ Benchmark Methodology:
+ - Consistent harness across all languages
+ - Warmup: 5 iterations (adaptive for slow tests)
+ - Timed runs: 20 iterations (3 for slow operations)
+ - Statistics: mean, median, std_dev, min, max
+ - Platforms: M1 Mac
+   - Note: LuaJIT on ARM not as optimized as x86_64
+
+
+* Results
+ Elisp Native-Comp is Actually Pretty Fast
+ - Despite being 15-60x slower than optimized Julia, it's 3-5x faster than interpreted Python
+ - Native-comp compiles bytecode but doesn't optimize Lisp semantics
+ - Respectable showing for a language not designed for numerical computation
+ - Makes Elisp genuinely viable for AoC-style problems
+
+ LuaJIT Performance is Impressive
+ - 4x faster than Elisp even without full ARM optimization
+ - On x86_64 would likely be 5-10x faster than these results
+ - JIT magic is real
+ - Surprising contender
+
+ Julia Dominates Everything
+ - Won all 6 problems (every part)
+ - JIT compilation is highly effective for these workloads
+ - Idiomatic Julia significantly faster than direct ports
+ - If you care about performance, Julia is hard to beat
+
+ Implementation Style Matters More Than You'd Think
+ - Python idiomatic vs elisp-port: 2.5x difference
+ - Julia idiomatic vs elisp-port: 1.7x difference
+ - Using NumPy provides massive speedups, as we know
+ - Python is only competitive with NumPy - otherwise quite slow
