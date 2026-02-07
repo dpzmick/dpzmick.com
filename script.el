@@ -212,7 +212,17 @@ Straight lives in a little container, unaffected by the actual system Emacs."
 
   (copy-file "CNAME" (path-concat site-dst "CNAME"))
   (copy-file "callback.html" (path-concat site-dst "callback.html"))
-  (site-copy-dir "static"))
+  (site-copy-dir "static")
+
+  ;; warn if the newest post has a date far from today
+  (let* ((newest (car site-posts))
+         (date (ht-get newest "DATE"))
+         (today (format-time-string "%Y-%m-%d"))
+         (days-off (abs (- (time-to-days (date-to-time today))
+                           (time-to-days (date-to-time date))))))
+    (when (> days-off 3)
+      (message "\033[1;33mWARNING: newest post date is %s but today is %s (%d days off)\033[0m"
+               date today days-off))))
 
 ;; Local Variables:
 ;; mode: emacs-lisp
