@@ -7,7 +7,7 @@
 #+END_EXPORT
 
 #+TITLE: AoC Self-Reflections (and a touch of AI doomerism)
-#+DATE: <2026-01-20>
+#+DATE: <2026-02-06>
 
 I have never completed [[https://adventofcode.com/][Advent of Code]] before, despite starting it almost every year.
 For 2025, there were 12 problems, so I thought maybe I could actually finish them all.
