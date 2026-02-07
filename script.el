@@ -84,7 +84,18 @@ Straight lives in a little container, unaffected by the actual system Emacs."
   ;; classes to annotate the stuff it would have generated colors for.
   ;; we inject an expored base16 css file in the static dir
   (setq org-html-htmlize-output-type 'css)
-  (setq org-export-with-sub-superscripts nil))
+  (setq org-export-with-sub-superscripts nil)
+
+  ;; org-export-get-reference uses sxhash which isn't stable across
+  ;; sessions, causing spurious diffs. Replace with a simple counter.
+  (advice-add 'org-export-get-reference :override
+    (lambda (datum info)
+      (let ((cache (plist-get info :internal-references)))
+        (or (car (rassq datum cache))
+            (let ((new (format "org%07x" (1+ (length cache)))))
+              (push (cons new datum) cache)
+              (plist-put info :internal-references cache)
+              new))))))
 
 ;; NOTE, was using uuidgen command line as:
 ;;  (let ((cmd (format "uuidgen --namespace %s --name %s --sha1"
