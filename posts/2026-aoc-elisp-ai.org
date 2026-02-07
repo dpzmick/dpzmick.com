@@ -1,0 +1,272 @@
+#+PROPERTY: header-args :eval never-export
+
+#+BEGIN_EXPORT html
+<style>
+.results { width: 30% }
+</style>
+#+END_EXPORT
+
+#+TITLE: AoC Self-Reflections (and a touch of AI doomerism)
+#+DATE: <2026-01-20>
+
+I have never completed [[https://adventofcode.com/][Advent of Code]] before, despite starting it almost every year.
+For 2025, there were 12 problems, so I thought maybe I could actually finish them all.
+
+But, there's also something else going on in 2025: AI.
+There's tons of evidence that AI tooling can just solve the AoC problems [[https://github.com/balintant/AdventOfClaude-2025][all on its own]].
+The models can even [[https://lucumr.pocoo.org/2025/12/23/advent-of-slop][write reflective blog posts about the problems]].
+
+In the face of this AI stuff, why even try?
+Just completing the problems isn't the goal.
+Anyone can just make AI do that now.
+I wanted to remind myself /why/ I got into software in the first place; wanted to /enjoy/ sitting down and writing some code just /for fun/.
+
+I treated Advent of Code 2025 as a small experiment in understanding what’s fun about the problems, what’s fun about programming, and how AI changes the experience of both.
+This post is a reflection on the experience
+I hope to capture what I think "fun" is, using AoC as a case study, then discuss of what happens when AI gets involved.
+
+* AoC 2025 Experience
+I am not a speedy competitive programmer; these problems take me a fair amount of time.
+A shorter set of 12 problems meant I was actually able to finish them all!
+
+On the trick question (you know which one) and questions that depend on careful interpretation of the exact input properties, I struggled a bit.
+I often found myself trying to solve larger/harder/more-general problems than required.
+Doing these problems was a good reminder to not over do it.
+
+I also think I would enjoy a set of problems that reward the performance and scalability of the solution.
+Someone on reddit said it this way:
+#+begin_quote
+I would definitely enjoy a third star with a bigger input that requires an efficient algorithm to run in a reasonable time.
+#+end_quote
+
+Almost all of my real-world scalable algorithms depend on subtle properties of the expected inputs and require real thought about both the algorithm and computer architecture, but I like it when the problem isn't just picking up details.
+Maybe the "perfect balance" would be a challenge with 6 problems that are just hard enough to require /some/ algorithmic thinking, but not large enough to be Day Job problems.
+In other words... a university problem set?
+
+** Problem Highlights
+Days 9 and 10 were my favorites, for slightly different reasons.
+For both of them, I had a "idk what to do now" moment and had to do some careful web searching to avoid full spoilers.
+I think getting stuck on both, then (re)learning something, is a big part of what was fun.
+
+Day 9 is a problem I traditionally would have avoided had I not set a completion goal.
+The graphicsy coordinate manipulation stuff is fiddly and I always get it wrong.
+Fortunately, AI fixed all my bugs this time, and I really enjoyed doing the coordinate compression into flood fill into prefix sum into brute-force solution for part 2.
+Coordinate compression and using prefix sums in this way were both new to me and both really cool.
+
+Day 10 was super fun.
+It's a hard problem of exactly the style I was looking for.
+It requires a good algorithmic approach, but no really clever ILP space pruning or anything super fancy.
+Mechanically, writing and debugging the code for Gaussian elimination was tons of fun.
+And, the problem leaves me with a lot of followup ideas to explore and questions about how other people's solutions work.
+Great problem, 10/10.
+
+** AoC Conclusions: Fun?
+Overall, yes very fun!
+It was nice to be able to complete the full set of problems.
+
+The AoC problems I enjoyed had a pleasant balance between big-F Fundamental Problems and real world problem solving.
+I'm attracted to these big-F Fundamental Problems, especially when I can use a bit of low-level computer architecture stuff to make solutions go fast.
+In a (reductive) taxonomy of problems including (1) fundamental problems, (2) hard core engineering problems, (3) product problems, working through AoC reminds me that I'm most attracted to things in the intersection between (1) and (2).
+
+The self-reflection exercise I'm able to do following completing the problems is also fun.
+
+* Emacs Lisp
+My overall experience with Emacs Lisp was good, and I’m glad I made this choice.
+The development environment is fantastic.
+The language itself may be a poor fit for AoC-style problems and I’m also not convinced I used it particularly well.
+
+** The Language
+According to Claude, what I ended up doing was more Common Lisp than Emacs Lisp:
+#+begin_quote
+You're writing Common Lisp that happens to run in Emacs, not Emacs Lisp.
+#+end_quote
+
+I struggled with choices around mutation and program shape throughout these problems.
+
+*** Mutation and State
+Mutation seems to be everywhere in Emacs Lisp.
+I looked up best practices surrounding mutability when starting day 1.
+For these AoC problems, many of which have large-ish 2d grids and small updates, /I think/ mutation is the right choice.
+
+The mutation-heavy style I used on these problems might have encouraged other bad behavior.
+
+*** Program Shape
+Emacs lisp does not perform tail recursion optimizations.
+This means deep trees of recursive calls are a bit risky.
+Instead, elisp uses a lot of maps and folds and filters and stuff.
+But, maps, folds, etc, don't play well with heavy mutation.
+
+I found myself using a lot of =cl-loop=; it has flexible accumulation clauses, and the =if/when/unless= set of clauses map well to the way I write imperative code.
+This isn't a particularly "functional" way to write the code, nor does it turn out to actually perform that well.
+See my [[./2026-aoc-seq-lisp-perf.html][Emacs Lisp Performance Oddity]] post for more details!
+
+** The Libraries
+I didn't use any external packages because I didn't want to break my editor messing with the packages.
+The built in libraries are great, though a bit inconsistent (see =elt= vs =nth= vs =aref= argument order).
+There is a built-in function for almost everything, though sometimes finding them is a bit tricky without reading all of =seq.el= over and over again.
+I'm sure I just didn't leverage the built-in help system to its fullest, and that this complaint isn't well founded (though nothing really comes close to hackage for discovery).
+
+I don't feel like I took advantage of the text processing tools in emacs, even though I needed to parse a lot of text.
+In only one problem did I drop the input into a buffer then walk it with a regex for input parsing.
+This wasn't necessary for many of the problems, but it was powerful when I needed it.
+
+** Tools and Workflow
+All of the developer tools are great (profilers, debuggers, help system, etc).
+The emacs living-system, where I can inspect or change anything, is a nice change of pace.
+
+The most powerful part of working in emacs, in my opinion, is the ability to pop up a buffer with some internal state, and just /look at it/.
+For example, want to inspect a matrix?
+Just pop up a buffer and look at it:
+#+begin_src elisp
+(defun show-mat (m)
+  (with-current-buffer (get-buffer-create "*mat*")
+    (erase-buffer)
+    (cl-loop for r from 0 below (mat-rows m) do
+             (cl-loop for c from 0 below (mat-cols m) do
+                      (insert (format "%2d" (mat-ref m r c))))
+             (insert "\n"))
+    (goto-char (point-min))
+    (pop-to-buffer (current-buffer))))
+#+end_src
+
+This is a fantastic level of introspection capability.
+The debugger of course also gives you significant access to internal state.
+
+Additionally, I automated much of the problem workflow, including running solutions and copying the result to the system clipboard to paste into AoC.
+I want to find a way to use emacs in my day job to /drive/ more of the workflows I use on a regular basis.
+
+** Language Conclusion: Fun?
+Elisp is probably the wrong choice for AoC, but that's okay.
+I'm happy to have learned more of the language; I will hopefully be using a lot more of it for workflow automation.
+Programming in this environment was joyful.
+It scratched the "programming can be fun" itch.
+
+/Programming/, the mechanical bits of modifying some code, thinking about the code, debugging the code with nice tools, and automating repeated parts of the mechanical programming process, is something I find enjoyable.
+The hyper-focus is enjoyable and incredibly relaxing for me.
+I had a lot of fun reflecting on, evaluating, and trying to tweak my programming style/behaviors as well.
+
+* AI
+Plenty of people have shown that autonomous agents can solve the entire AoC problem set on their own, so I didn't explore this.
+I used AI as a problem solving partner, asking it to review code, review ideas, discuss solutions, etc, rather than just asking it to do everything.
+
+It's not clear to me if I was more productive.
+I'm tempted to say that, on this problem set, I might have been faster without the AI, and the AI would have been faster without me.
+Working together seems to have been worse for both of us (though I could think a lot less hard, which is addictive).
+
+What happened?
+- Using AI to fix bugs was a minor productivity boost.
+- Using AI as a design partner/pair programmer was a big time waster.
+  
+When I fed AI incorrect assumptions (while brainstorming), the AI tools struggled.
+The tools seem to struggle to discard or correct incorrect information.
+Even worse, they seem to "fixate" on specific sentences, snippets, code comments, etc, and keep bringing them up over and over again[fn:: A coworker of mine pointed out that this might be a result of optimizing for needle-in-a-haystack benchmarks.].
+Fixation combined with incorrect information is a recipe for productive-looking disaster.
+
+Maybe better prompting can help when there's a specific task to accomplish (i.e. "check these assumptions ... then solve ...").
+However, in cases where I'm trying to learn something and don't know what I don't know, this behavior is harmful.
+When a model fixates on a bad assumption, without correcting it, it's easy to lose an hour to "oh so close! maybe if I change the prompt in this small way and try again it'll work."
+
+AoC is small, bounded, and artificial, but the failure mode I encountered here maps well to my day job.
+The real world is messy, filled with bad assumptions, filled with mistakes, filled with buggy code, and filled with confused humans.
+
+Something I say /constantly/ in my day job is: "if we knew how to solve this, it would already be solved."
+Experienced developers know that their job is figuring out what problem we are even solving, defining the problem well, managing the stakeholders, keeping the team aligned, and saying no reframing stuff in creative ways.
+Once all that is done, getting working code out is typically straightforward.
+
+Now that AI can crank out the code, for well defined problems, that leaves us developers to do the creative-human work and spend less time arguing with the programming language to get it to do the thing we finally figured out.
+As an experienced developer who has fully embraced my real job, I should be thrilled, right?!
+
+* I am uneasy
+I am not entirely thrilled yet.
+There are a few things that leave me uneasy, and I bet I'm not the only one.
+Articulating why has taken me a long time and a lot of HN comment reading.
+
+I did AoC to reflect on what I think is fun about programming.
+Summarizing all the above commentary, it's roughly these two things:
+1. Actually writing code
+2. Discovering something / Thinking
+
+Let's talk through both.
+
+** Writing Code
+The mechanical process of writing and debugging code /is extremely fun/.
+Getting into a flow state while writing code is deeply enjoyable.
+
+Many of us /love code/, and love to argue about the right way to write it.
+Many of us /enjoy/ the fun colors we've configured in our text editors, the keybindings we've internalized, the cool new LSP thing we found last week, etc.
+It's a huge bummer to me that there's probably not as much of this in my future.
+
+It's possible that I might be able to restore some of the flow state with AI tools and good integrations between them.
+I will spend significant time trying to make the new workflow fun and joyful.
+I'm optimistic this AI-fueled coding thing can become mechanically fun too, just in some different way.
+
+** Discovery and Thinking
+I'm in a bit of a pickle over how AI tools and programming work for this second thing.
+
+The act of programming is a tool for thought and a tool for discovery.
+Nearly all of the code I write is thrown away; the point of writing it was to figure out what the problem even is.
+
+A great analogy here is writing text.
+This blog post, for example, took me a month to write.
+Writing text over and over again is /how/ I figured out what I actually think!
+
+The specific thing I'm thinking about varies, but programming languages (for me) are often a good tool to explore the problem space (for problems I actually like working on).
+That is, programming languages are great tools for thinking about questions like:
+- What's the right algorithm for this Fundamental Problem?
+- What does the data look like?
+- How do I lay all this stuff out in memory to go really fast?
+- What is the interface that hides /just the right amount/ of stuff?
+
+This "programming as thinking" also directly relates to the programming styles used, and why it's fun to explore different styles.
+Trying and thinking about styles of programming is a way to understand the problem better.
+
+I care about my tools, about programming languages, and interactive/iterative workflows because these are tools for thought.
+
+There's tons of good content in this discussion on HN related to this concept: https://news.ycombinator.com/item?id=46881264 and https://news.ycombinator.com/item?id=46909439 and https://news.ycombinator.com/item?id=46917567 and many more
+
+You’d be right to say “you know you can still write code, right?”
+Yes, of course, but it's really hard to know when the problem is defined well enough to switch from thinking to executing.
+Switching over when it is execution time is /probably/ faster.
+But, the feedback loop between half-formed ideas, concrete representations, and small experiments is fragile.
+Writing bad code, throwing it away, rewriting it in a different style, or changing the representation entirely is how I notice when I have something wrong.
+When execution is outsourced too early, I worry that I lose the friction that tells me when something doesn’t make sense and get caught in the "one more try" prompt loops.
+
+This isn’t unique to AI-assisted programming.
+We see this problem frequently when working with design docs.
+You can write the design up all day, but when you actually go implement your ideas you'll almost certainly discover incorrect assumptions, important missed details, etc (this does not invalidate design doc writing, as long as everyone accepts that they are just a hypothesis of a design).
+
+Maybe getting the thinking/executing balance right will come with time and practice.
+Maybe it will get easier to tune my instincts when the progress on the models slows.
+
+Maybe the new experimentation is just making Claude write all the code, then A/B testing it in prod and spending all my time debugging stuff.
+This is sort of happening right now in day job, so it's a plausible future.
+Debugging someone else's code all day is a pretty grim job, and "production" is almost too late to be discovering what the problem actually is.
+
+A more optimistic path could be that thinking moves to tools other than classical programming languages.
+I already sometimes prototype in higher level languages than my final implementation, maybe that is taken to an extreme?
+Maybe thinking happens in specification languages, proof assistants, simulators, deliberately constrained DSLs, with models acting more like "compilers" that can plug the ideas into the final codebase and convert between languages or something.
+Maybe team-work works better with these models in a specification language?
+That's worth some experimentation.
+
+I am not sure what comes of this but it's fairly clear we still need tools for thinking (until [[#for-now]]).
+
+* Overall Conclusion
+Here's some bullets on what this was all about:
+- AoC this year was fun, I'm glad I did it
+- Emacs Lisp the language is good, but not great
+- Emacs Lisp the programming environment is amazing
+- The mechanical act of "doing programming" can be super fun
+  - But AI can do it pretty well now, so maybe that's a bummer
+- Writing code often /is/ the thinking and I'm not sure what happens to this
+
+I am leaving this thinking-by-writing experience with more questions than answers.
+I'm hopeful that I've left you with some good questions too!
+  
+* Appendix: For now...
+:PROPERTIES:
+:CUSTOM_ID: for-now
+:END:
+
+When I asked Claude to review this post and give me a summary of "what's left for humans," it made a nice long list of skills humans have (most of which are in here somewhere), but concluded with "\n\nFor now."
+
+uhhhh
