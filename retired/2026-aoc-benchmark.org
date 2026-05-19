@@ -1,0 +1,214 @@
+#+TITLE: Benchmarking Elisp Against Real Languages
+#+DATE: <2026-02-06>
+
+/This is a guest post written by [[https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview][Claude Code]]. David wrote the elisp, asked me to do the rest, and lightly edited the result. See his [[./2026-aoc-elisp-ai.html][reflections post]] for the human side of the story./
+
+David did [[https://adventofcode.com/2025][Advent of Code 2025]] in Emacs Lisp, and native-compiled elisp turned out to be surprisingly fast on some problems.
+
+The question he actually wanted to answer: how does Emacs Lisp compare to Lua?
+Neovim has bet its entire extension ecosystem on LuaJIT.
+Emacs has Elisp, which has been evolving since 1985 and recently gained a native compiler.
+If you're choosing an editor partly on "how fast can my config and plugins be," the Elisp-vs-Lua comparison is the one that matters.
+
+I also ported to Python (as a familiar reference point everyone can calibrate against) and Julia (as a stand-in for C-level performance, without requiring anyone to review C ports).
+
+* Setup
+
+I selected three computationally interesting problems from David's solutions:
+- *Day 9*: Coordinate geometry with flood fill and prefix sums
+- *Day 10*: BFS over bitmask state space (Part 1), integer Gaussian elimination (Part 2)
+- *Day 11*: Path counting with memoized DFS over a sparse graph
+
+Each problem was ported in two styles:
+1. *Elisp-mirrored*: Direct port using the same data structures and algorithms. Tests how the language/runtime performs with the same approach.
+2. *Idiomatic*: Leverages language strengths (NumPy for Python, native array types for Julia). Tests how much implementation style matters.
+
+Languages tested:
+- Elisp (native-compiled) -- David's original solutions, the baseline
+- Python (both styles)
+- Lua (LuaJIT) -- elisp-mirrored only
+- Julia (both styles)
+
+I wrote all of the ports and the benchmark harness.
+The harness does 5 warmup iterations followed by 20 timed runs (fewer for slow tests), reporting mean times.
+All runs on an M1 Mac.
+
+Note that LuaJIT is not heavily optimized on ARM, so these numbers likely understate Lua's advantage on x86_64.
+
+* Results
+
+#+begin_src gnuplot :file ../static/aoc-benchmark-totals.svg :exports none
+set terminal svg size 600,380 font "sans,13" background "#ffffff"
+set style data histogram
+set style histogram clustered gap 1
+set style fill solid 0.85 border -1
+set boxwidth 0.7
+
+set ylabel "Total time (ms)" offset 1,0
+set logscale y 10
+set yrange [100:50000]
+set format y "%.0f"
+set grid ytics lt 0 lw 0.5 lc rgb "#cccccc"
+
+set border 3
+set xtics nomirror
+set ytics nomirror
+unset key
+
+set lmargin 10
+
+$data << EOD
+"Jl-Idiom"  275.66  0x4477AA
+"Julia"     459.56  0x6699CC
+"LuaJIT"   1714.61  0x44AA77
+"Elisp"    6784.93  0xDD8844
+"Py-Idiom" 11558.84 0xCC4444
+"Python"   29201.79 0xAA2222
+EOD
+
+plot $data using 2:xtic(1) lc rgb var notitle
+#+end_src
+
+#+ATTR_HTML: :class light-invert
+[[../static/aoc-benchmark-totals.svg]]
+
+#+begin_src
+Problem             Elisp       Python     Py-Idiom          Lua        Julia     Jl-Idiom         Best Winner
+                     (ms)         (ms)         (ms)         (ms)         (ms)         (ms)
+--------------------------------------------------------------------------------------------------------------------------------------------
+Day 09 Part 1         7.98        41.28        27.62         0.35         0.17         0.54         0.17 Julia
+Day 09 Part 2      1135.72      3678.01       394.40       366.45        53.10         1.86         1.86 Jl-Idiom
+Day 10 Part 1       134.04        33.33        33.13       154.88         5.27         2.96         2.96 Jl-Idiom
+Day 10 Part 2      5408.45     24816.38     11096.17      1185.64       395.69       268.60       268.60 Jl-Idiom
+Day 11 Part 1        49.57       314.92         3.39         3.54         2.53         0.84         0.84 Jl-Idiom
+Day 11 Part 2        49.17       317.86         4.13         3.76         2.80         0.85         0.85 Jl-Idiom
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+TOTALS            6784.93     29201.79     11558.84      1714.61       459.56       275.66
+#+end_src
+
+#+begin_src
+Speedup vs Elisp  Py-Elisp     Py-Idiom          Lua        Julia     Jl-Idiom
+--------------------------------------------------------------------------------------------------------------------------------------------
+Day 09 Part 1        0.19x        0.29x       23.09x       48.20x       14.88x
+Day 09 Part 2        0.31x        2.88x        3.10x       21.39x      609.69x
+Day 10 Part 1        4.02x        4.05x        0.87x       25.41x       45.26x
+Day 10 Part 2        0.22x        0.49x        4.56x       13.67x       20.14x
+Day 11 Part 1        0.16x       14.61x       14.01x       19.62x       58.75x
+Day 11 Part 2        0.15x       11.92x       13.07x       17.58x       57.76x
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+OVERALL             0.23x        0.59x        3.96x       14.76x       24.61x
+#+end_src
+
+* Elisp vs Lua: the editor extension showdown
+
+The headline number: *LuaJIT is about 4x faster than native-compiled Elisp on aggregate.*
+That's a real gap, but it's a surprisingly small one.
+LuaJIT is one of the most impressive dynamic language runtimes ever built -- a tracing JIT that routinely gets within 2-3x of C.
+Only 4x faster than native-compiled Elisp is a good showing for Elisp.
+
+But the aggregate hides a lot of per-problem variation, and some of it is my fault.
+
+** Day 10 Part 1: Elisp wins (because of a bug in my port)
+
+Elisp is actually /faster/ than LuaJIT on Day 10 Part 1 (Lua 0.87x, i.e. slower).
+This is BFS over a state space with bit operations.
+Unfortunately, this result is an artifact: my Lua port uses an O(n) queue (removing from the front of a Lua array shifts every element), while David's Elisp and my Python port both use O(1) queues.
+With a proper queue, Lua would almost certainly be faster here.
+
+** Day 11: Lua is 14x faster
+
+Day 11 is where we see LuaJIT's real advantage.
+Both ports use the same algorithm -- DFS with memoization over a sparse graph -- but the inner loop is a tight scan over a data structure, which is exactly where a tracing JIT shines.
+The 14x gap here is probably closer to the "true" language gap for compute-heavy code than the 4x aggregate.
+
+** What the gap actually means
+
+Day 9 (array manipulation) shows Lua 3-23x faster.
+Day 10 (BFS) is confounded by my queue bug.
+Day 11 (tight loops over data structures) shows Lua ~14x faster.
+
+The true gap is somewhere between 4x and 14x.
+The aggregate is dragged down by my buggy Day 10 port; the Day 11 number may overstate it since that workload is unusually JIT-friendly.
+We'd need more problems to narrow it down.
+
+* Elisp is faster than Python
+
+My direct-port Python is 4.3x /slower/ than David's native-compiled Elisp.
+
+The shape of the Python results is interesting: it depends entirely on whether the hot loop runs in the interpreter or dispatches to C.
+On Day 11, the inner loop does a lot of method calls on custom Python objects -- attribute lookups, bounds checking, index arithmetic -- and CPython's interpreter overhead makes each call expensive.
+Native-compiled Elisp does the same logical work but compiles struct accessors to machine code.
+Result: Python is 6.3x slower.
+
+Day 10 Part 1 is the opposite.
+The BFS uses Python's built-in =set= and =deque=, which are implemented in C.
+The hot path barely touches the interpreter.
+Result: Python is 4x /faster/ than Elisp.
+
+The idiomatic Python (using NumPy) is still 1.7x slower overall, but that aggregate is misleading.
+Day 10 Part 2 dominates the totals at 11 seconds, and the "idiomatic" version there uses essentially the same algorithm -- just swapping a custom matrix class for NumPy arrays, which doesn't help much for Gaussian elimination.
+On Day 9, where NumPy can replace a manual prefix-sum loop with a single =cumsum= call, idiomatic Python is actually 2.9x faster than Elisp.
+
+* The "idiomatic" ports aren't just style changes
+
+The benchmark labels these as "idiomatic" vs "elisp-mirrored," which makes them sound like the same algorithm written differently.
+They're not always.
+
+The Day 11 graph has 584 nodes with an average degree of 3 -- it's 0.5% dense.
+The direct ports all use an adjacency matrix and scan the entire row on every DFS call: 584 entries checked to find ~3 neighbors.
+My "idiomatic" ports skip the empty entries (Python) or switch to adjacency lists entirely (Julia).
+That's not a style difference; it's a data structure change, and it's the main reason the idiomatic versions are 90-370x faster on Day 11.
+
+The Day 9 idiomatic ports are closer to genuine style differences -- same algorithm, but using vectorized operations instead of manual loops.
+
+* David's Elisp was leaving performance on the table
+
+David wrote a [[./2026-aoc-seq-lisp-perf.html][separate post]] investigating a performance oddity he kept hitting: hand-written =cl-loop= iterations were consistently slower than calling Elisp's built-in sequence functions, even when the builtins did more work.
+
+A one-pass =cl-loop= argmax was *4.2x slower* than a three-pass version using =seq-position= and =seq-max=.
+A =cl-loop= sum was *43x slower* than =(apply #'+ ...)=.
+Even after native compilation, the loops were 2-4x slower.
+
+The explanation: Elisp's builtins are implemented in C.
+Running a tight loop in Lisp -- even native-compiled -- is dominated by boxing, type checks, and function call overhead that C builtins skip entirely.
+
+David's AoC solutions are full of =cl-loop=.
+If he'd leaned on builtins more aggressively, the Elisp numbers would be better -- perhaps enough to close a meaningful chunk of the gap to Lua.
+
+* Julia is the performance ceiling
+
+Julia is 15-25x faster than Elisp across the board.
+It was designed for numerical performance with LLVM-compiled, type-specialized code, so this isn't surprising.
+It serves as a useful reference: the gap between Elisp and "real compiled language" performance is roughly one order of magnitude, not two or three.
+
+The Day 9 Part 2 outlier (idiomatic Julia 610x faster) is an algorithm gap, not a language gap -- bulk array operations replacing element-by-element loops.
+
+* So what?
+
+If you're an Emacs user wondering whether your editor's extension language is embarrassingly slow: no.
+Native-compiled Elisp is faster than CPython, within an order of magnitude of LuaJIT, and roughly 15-25x off from compiled languages.
+That's not a language to be ashamed of.
+
+The more interesting takeaway is that every language here has a "fast path," and the benchmark results mostly reflect how much time each solution spends on it.
+Elisp is fast when it dispatches to C builtins; David's =cl-loop=-heavy style missed that path and left 2-4x on the table.
+Python is fast when it stays in C (=set=, =deque=, NumPy) and catastrophically slow when it doesn't.
+LuaJIT is fast when its tracing JIT can optimize a hot loop.
+My "idiomatic" ports gained 90-370x on one problem just by changing a data structure.
+
+Language choice sets the ceiling.
+But how you write the code -- and whether you're working with the runtime or against it -- determines where you actually land.
+
+* Caveats
+
+I wrote all the non-elisp code, and nobody checked my work.
+As demonstrated by the Lua queue bug above, the ports are not perfect.
+David didn't verify that my ports are optimal, or even particularly good.
+I /think/ they're reasonable, but I would say that.
+
+This is a casual experiment, not a rigorous benchmark -- take it for what it is.
+
+* Code
+
+All solutions, ports, and benchmark code: [[https://github.com/dpzmick/aoc/tree/master/2025][github.com/dpzmick/aoc]]
