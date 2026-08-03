@@ -1,0 +1,846 @@
+#+TITLE: Galois Field Orbits and Shift Registers
+#+DATE: <2026-07-23>
+
+# Intended audience/flow, so we don't lose the plot as this grows (and as AI
+# hacks on the doc a bit, though this is mostly human written):
+#
+# - Gates and Sequences (audio 101): for readers comfortable with math/CS
+#   but not audio/music production. Anyone who already knows what a gate
+#   sequence is should be able to skip this subsection in a few seconds —
+#   keep it tight, notation-first, no padding, but don't assume the reader
+#   knows what a "gate," "kick," "snare," or "hihat" is.
+# - Galois Fields intro: needs to work for a reader with very little math
+#   background too, not just CS/audio people. The goal is to get a reader
+#   with minimal math to feel *why the shift-register property is weird*,
+#   even if they never touch the formal proof. This is the hardest section
+#   to calibrate and deserves the most care.
+# - The proof itself (specific case, then general case): will go to another post
+
+I have been trying to generate musical-sounding rhythms and melodies using Galois Fields.
+[[https://cgm.cs.mcgill.ca/~godfried/publications/banff.pdf][Euclidean (algo)Rhythms]] are frequently used in electronic music, so there is some prior art for mathy things producing musically interesting results.
+Euclidean Rhythms provide ways to "fill space optimally," which ends up sounding musical.
+In $GF(2^n)$, Galois Field elements are bitstrings, which map naturally to gate sequences.
+Since these sequences are field elements that we can do math over, we can manipulate them to form new sequences, combine them in exciting ways, or move between them.
+It's likely that there's some way to produce something musical.
+
+Most of what I've tried so far hasn't been interesting, but one attempt produced a series of repeated (decent sounding) shifts of the same sequence, which I found surprising.
+We need two things to understand this: a way to write rhythms as zeros and ones, and a way to treat those same zeros and ones as elements of a Galois Field.
+
+#+begin_export html
+<style>
+  aside { border-left: 3px solid #666; padding-left: 1em; margin: 1.2em 0; font-size: 0.94em; opacity: 0.85; }
+  aside p:first-child { margin-top: 0; }
+  aside p:last-child { margin-bottom: 0; }
+  details { border-left: 3px solid transparent; padding-left: 1em; margin: 1.2em 0; }
+  details[open] { border-left-color: #666; }
+  /* exported raw, so not in a <p> and gets no margins from anything */
+  audio { display: block; margin: 1.2em 0; }
+</style>
+#+end_export
+
+* Ingredients
+First we'll need to go over a few prerequisites.
+
+** Gates and Sequences
+In electronic music, sequences of "gates" express rhythms.
+A gate is either "open" or "closed."
+An "open" gate says "play this instrument at this step" and a "closed" gate says "play nothing at this step".
+A gate sequence is a bunch of gates in a row, like "open closed open open", which would mean the associated sound is played, skipped, played, played (repeating forever).
+
+If we use 1 for "open" and 0 for "closed," we can write sequences compactly.
+For example, we can write a bass drum pattern of =1000=, a snare pattern of =0010=, and a hihat pattern of =0101=.
+Read these one digit at a time, left to right: =1000= is "one zero zero zero", not "one thousand".
+Drawn out, those would be:
+
+#+name: seqgrid-def
+#+begin_src python :session seqgrid :results output html :exports results
+ON_COLOR = "#81a2be"
+
+def grid(rows, n=4):
+    cell, gap, label_w = 44, 12, 140
+    pad_l, pad_t, pad_b, row_gap = 4, 14, 26, 16
+    nrows = len(rows)
+    w = pad_l + label_w + n*cell + (n-1)*gap + 30
+    h = pad_t + nrows*cell + (nrows-1)*row_gap + pad_b
+    tick_y = pad_t + nrows*cell + (nrows-1)*row_gap + 10
+    x0 = pad_l + label_w + cell/2
+    x1 = pad_l + label_w + (n-1)*(cell+gap) + cell/2
+    s = [f'<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" '
+         f'style="max-width:{w}px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">']
+    s.append(f'<line x1="{x0}" y1="{tick_y}" x2="{x1}" y2="{tick_y}" stroke="#666" stroke-width="1"/>')
+    for i in range(n):
+        x = pad_l + label_w + i*(cell+gap) + cell/2
+        s.append(f'<circle cx="{x}" cy="{tick_y}" r="2.5" fill="#666"/>')
+    for r, (label, bits) in enumerate(rows):
+        y = pad_t + r*(cell+row_gap)
+        s.append(f'<text x="{pad_l}" y="{y+cell/2+5}" font-size="15" fill="currentColor">{label}</text>')
+        for i, b in enumerate(bits):
+            x = pad_l + label_w + i*(cell+gap)
+            on = b == "1"
+            s.append(f'<rect x="{x}" y="{y}" width="{cell}" height="{cell}" rx="8" '
+                     f'fill="{ON_COLOR if on else "none"}" stroke="{ON_COLOR if on else "#666"}" stroke-width="2"/>')
+    s.append('</svg>')
+    return "\n".join(s)
+
+print(grid([("bass drum 1000", "1000"), ("snare 0010", "0010"), ("hihat 0101", "0101")]))
+#+end_src
+
+#+RESULTS: seqgrid-def
+#+begin_export html
+<svg viewBox="0 0 386 204" xmlns="http://www.w3.org/2000/svg" style="max-width:386px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">
+<line x1="166.0" y1="188" x2="334.0" y2="188" stroke="#666" stroke-width="1"/>
+<circle cx="166.0" cy="188" r="2.5" fill="#666"/>
+<circle cx="222.0" cy="188" r="2.5" fill="#666"/>
+<circle cx="278.0" cy="188" r="2.5" fill="#666"/>
+<circle cx="334.0" cy="188" r="2.5" fill="#666"/>
+<text x="4" y="41.0" font-size="15" fill="currentColor">bass drum 1000</text>
+<rect x="144" y="14" width="44" height="44" rx="8" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="200" y="14" width="44" height="44" rx="8" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="256" y="14" width="44" height="44" rx="8" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="312" y="14" width="44" height="44" rx="8" fill="none" stroke="#666" stroke-width="2"/>
+<text x="4" y="101.0" font-size="15" fill="currentColor">snare 0010</text>
+<rect x="144" y="74" width="44" height="44" rx="8" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="200" y="74" width="44" height="44" rx="8" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="256" y="74" width="44" height="44" rx="8" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="312" y="74" width="44" height="44" rx="8" fill="none" stroke="#666" stroke-width="2"/>
+<text x="4" y="161.0" font-size="15" fill="currentColor">hihat 0101</text>
+<rect x="144" y="134" width="44" height="44" rx="8" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="200" y="134" width="44" height="44" rx="8" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="256" y="134" width="44" height="44" rx="8" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="312" y="134" width="44" height="44" rx="8" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+</svg>
+#+end_export
+
+Here's what that pattern sounds like:
+
+#+begin_export html
+<audio controls src="../static/gflfsr/gates_demo.wav"></audio>
+#+end_export
+
+# generated by static/gflfsr/gen_gates.py — rerun that script if the pattern
+# above changes
+#
+# FIXME these wavs are enormous (the page is ~7.4 MiB over the wire, which is
+# absurd for this site). Shrink them: mono, lower sample rate, fewer loops, or
+# a compressed format.
+
+These =0101..= bitstrings look an awful lot like binary numbers!
+
+** Galois Fields
+I'll attempt to explain Galois Fields well enough here to follow the rest of the post, but I recommend reading [[https://xorvoid.com/galois_fields_for_great_good_00.html][Learn you Galois Fields for Great Good]] if you'd actually like to learn how they work.
+
+When people talk about math, they are typically discussing numbers and operations.
+The most familiar operations are addition, subtraction, multiplication, and division.
+These operations take (usually) two numbers and give you back a new one.
+
+We've come up with a bunch of rules that these operations follow.
+One such rule is the "distributive property," which says: =x × (y + z) = x × y + x × z=.
+
+Sometimes we change the way the operations work.
+When doing "clock math" (math with time), we say all numbers greater than 12 "wrap around", so =6+7 = 1= (=13 - 12 = 1=).
+Math (for some definition of math) still works on a clock face.
+
+If we can change what operations do, can we also change what numbers /are/?
+Maybe; we could, for example, replace numbers with drum patterns, then define specific operations over these patterns that allow us to "add patterns together."
+Imagine "adding" two patterns together with a simple rule:
+#+begin_quote
+In each output position, the gate is open (1) only when the gate in the same position was open in /exactly/ one of the two input patterns.
+#+end_quote
+
+#+begin_export html
+<style>
+  table.small { width: auto; margin: 0 auto; border-collapse: collapse; }
+  .small th, .small td { padding: 0.1em 0.7em; text-align: center; }
+  .small td:last-child, .small th:last-child { border-left: 2px solid #333; color: #81a2be; }
+</style>
+#+end_export
+
+Working that out for a single position, we get this table:
+
+#+ATTR_HTML: :class small
+| input 1 | input 2 | output |
+|---------+---------+--------|
+|       0 |       0 |      0 |
+|       0 |       1 |      1 |
+|       1 |       0 |      1 |
+|       1 |       1 |      0 |
+
+Then, for a full sequence, we'd say: =0110 + 1101 = 1011= (check this yourself).
+
+We've changed our numbers and changed our operations.
+Are we still doing math?
+We have a new "add" operation, does it follow any familiar rules?
+In normal math, multiplication is "adding a value to itself N times", where =N= is a number.
+Can we even define multiplication at all now when =N= is a gate sequence?
+
+It turns out that the answer to these questions is /sometimes/.
+For /some/ combinations of "things" and "operations," the familiar rules of math keep working (the distributive property, for example).
+When a combination allows the rules to work, we call it a /field/.
+A field built from only a /finite/ collection of things is called a Finite Field, or Galois Field (named after [[https://en.wikipedia.org/wiki/%C3%89variste_Galois][Évariste Galois]]).
+
+*** Prime Number Clock Math
+On a clock, "wrapping around" is secretly a remainder: =13 ÷ 12= is "1 with a remainder of 1."
+The remainder is what the clock shows.
+We call the wrap-around number the "modulus"; this style of math is called "modular arithmetic".
+
+We can now build a working Galois Field using:
+- Numbers: 0, 1, 2, 3, 4, 5, 6 (7 total)
+- Operations: Clock-math/modular arithmetic
+
+There are 7 total numbers, so 7 is our modulus.
+This means, for example, =4 + 6 = 3 (mod 7)=, where the =(mod 7)= is notation reminding us that the modulus is 7.
+
+Work it out: normally =4 + 6 = 10= and =10 ÷ 7 = 1 remainder 3=.
+
+Multiplication works the same way; you do it normally, then take the remainder =(mod 7)=.
+
+Division is a bit trickier.
+For division to make sense, =6 ÷ 2= needs to have exactly one answer: "the number that produces 6 when multiplied by 2."
+
+In other words, dividing by 2 is impossible if we can find any =A= and =B= where:
+- =A= and =B= are different numbers
+- =A × 2= and =B × 2= produce the same answer
+
+When the modulus is 7, this is our multiplication table, with every =6= marked:
+
+#+begin_export html
+<style>
+  table.multable { width: auto; margin: 0 auto; border-collapse: collapse; }
+  .multable th, .multable td { padding: 0.1em 0.55em; text-align: center; }
+  .multable thead th { color: #81a2be; }
+  .multable td:first-child, .multable th:first-child { border-right: 2px solid #333; color: #81a2be; }
+  /* highlighted cells (org *bold*) get a ring; box-shadow + cancelled padding
+     so highlighting doesn't change the table's size */
+  .multable.hl b {
+    font-weight: inherit;
+    display: inline-block;
+    line-height: 1.25;
+    padding: 0 0.18em;
+    margin: 0 -0.18em;
+    border-radius: 6px;
+    box-shadow: 0 0 0 2px #81a2be;
+  }
+</style>
+#+end_export
+
+# no :session here; the PTY adds \r and org reads it as an extra column
+#+name: multable
+#+begin_src python :python python3 :var m=7 :var hl=6 :results output drawer :exports results
+def multable(m, hl=-1):
+    cls = "multable hl" if hl >= 0 else "multable"
+    lines = [f"#+ATTR_HTML: :class {cls}"]
+    lines.append("| × | " + " | ".join(str(b) for b in range(m)) + " |")
+    lines.append("|---" + "+---" * m + "|")
+    for a in range(m):
+        row = [str(a)]
+        for b in range(m):
+            v = (a * b) % m
+            row.append(f"*{v}*" if v == hl else str(v))
+        lines.append("| " + " | ".join(row) + " |")
+    return "\n".join(lines)
+
+print(multable(m, hl))
+#+end_src
+
+#+RESULTS: multable
+:results:
+#+ATTR_HTML: :class multable hl
+| × | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+|---+---+---+---+---+---+---+---|
+| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 1 | 0 | 1 | 2 | 3 | 4 | 5 | *6* |
+| 2 | 0 | 2 | 4 | *6* | 1 | 3 | 5 |
+| 3 | 0 | 3 | *6* | 2 | 5 | 1 | 4 |
+| 4 | 0 | 4 | 1 | 5 | 2 | *6* | 3 |
+| 5 | 0 | 5 | 3 | 1 | *6* | 4 | 2 |
+| 6 | 0 | *6* | 5 | 4 | 3 | 2 | 1 |
+:end:
+
+These are the ways to multiply numbers together and get 6 (with a modulus of 7):
+- =3 × 2= (or =2 × 3=)
+- =6 × 1= (or =1 × 6=)
+- =4 × 5= (or =5 × 4=)
+
+There is no duplication; the only answer to =6 ÷ 2= is 3.
+Ignore zero; every number times zero gives zero, but division by zero isn't defined in normal math either.
+
+Work this out for enough values to convince yourself that we can still do division.
+
+#+begin_aside
+If we do clock math with a modulus of 12, this doesn't work anymore.
+Consider that:
+- =1 × 4 = 4 (mod 12)=
+- =4 × 4 = 4 (mod 12)= (=16 ÷ 12 = 1= with a remainder of 4)
+
+So what is =4 ÷ 4=?
+It could be =1= or =4=.
+#+end_aside
+
+So, with a modulus of 7 (or /any prime number/): addition works, multiplication works, division works, and subtraction works too (check it yourself).
+With these basics working, most of normal math works too.
+
+*** Math Using Gate Sequences
+Math over gate sequences turns out to be possible.
+To demonstrate this, we will do math over the set of length two sequences.
+These are =00=, =01=, =10=, and =11= (a finite set of 4 elements).
+These are still sequences, not numbers; =10= is "one zero", not "ten".
+
+We can define addition using the same rule we sketched earlier:
+
+#+ATTR_HTML: :class multable
+|  + | 00 | 01 | 10 | 11 |
+|----+----+----+----+----|
+| 00 | 00 | 01 | 10 | 11 |
+| 01 | 01 | 00 | 11 | 10 |
+| 10 | 10 | 11 | 00 | 01 |
+| 11 | 11 | 10 | 01 | 00 |
+
+Multiplication is trickier, so you'll have to trust me.
+Here's the worked-out table, with every =01= marked so we can check that division still makes sense:
+
+#+ATTR_HTML: :class multable hl
+|  × | 00 |   01 |   10 |   11 |
+|----+----+------+------+------|
+| 00 | 00 |   00 |   00 |   00 |
+| 01 | 00 | *01* |   10 |   11 |
+| 10 | 00 |   10 |   11 | *01* |
+| 11 | 00 |   11 | *01* |   10 |
+
+You know the drill.
+We can create =01= from:
+- =01 × 01=
+- =10 × 11= (or =11 × 10=)
+
+You can check the rest of the values if you'd like.
+
+So we have all four operations:
+- Addition: a gate is open when exactly one of the two inputs is open
+- Subtraction: exactly the same as addition (try it)
+- Multiplication: complicated, but doable
+- Division: complicated, but also doable
+
+Nothing here is special about length two.
+For any length $n$, multiplication can be defined on the $2^n$ bitstrings so that they form a field.
+
+#+begin_aside
+You might notice that $2^n$ is not /prime/, which was our requirement from the previous section.
+Galois Fields turn out to exist for any prime number size $p$, or any size $p^n$, where $n$ is an integer.
+#+end_aside
+
+So, yes!
+We can replace numbers with sequences, redefine the operations, and have something that works like "normal math".
+Multiplication of gate sequences is all we need to start producing the strange rhythmic property I've encountered.
+
+#+begin_export html
+<details>
+<summary>Show me how this actually works (optional detour)</summary>
+#+end_export
+
+Each element is really a polynomial, with the bits as its coefficients.
+The leftmost bit is the /highest/ power (but either endian works), so =1011= is:
+$$
+1 x^3 + 0 x^2 + 1 x^1 + 1 x^0
+$$
+
+The modulus is an irreducible polynomial, so we do our operation normally, divide by the modulus (using long division of polynomials), and keep the remainder.
+
+Addition and subtraction are just bitwise XOR.
+Multiplying by $x$ is just a left-shift by 1.
+
+Once we have addition, subtraction, and multiplication by $x$, we can build the "remainder function" by adding shifted copies of the irreducible polynomial until we have the remainder.
+
+With those pieces in hand, we can implement multiplication and division of the full elements.
+
+[[https://xorvoid.com/galois_fields_for_great_good_00.html][Learn you Galois Fields for Great Good]] goes into much more detail, read that if the above seems interesting to you.
+
+#+begin_export html
+</details>
+#+end_export
+
+* Galois Orbit Sequences
+My first idea was to use field elements directly to sequence drums then find some mechanism to move between sequences to evolve the produced rhythm.
+An /orbit/ of a field is the path you take by starting with some field element and multiplying by some other element over and over.
+We can use these to move around in the field and evolve rhythms.
+
+In code, that'd be:
+#+begin_src python :eval no
+def orbit(start, gen):
+    ret = []
+    current = start
+    while current not in ret:
+        ret.append(current)
+        current = current * gen   # field multiplication
+    return ret
+#+end_src
+
+Some choices of =gen= will visit $2^n-1$ elements of the field (all except for =000=), and some will only visit a few of them.
+The field is finite, so an orbit will always come back to where it started.
+
+The orbit using sequences of length 3, =gen=010=, and =start=001= is:
+# modulus x^3+x^2+1; verified, do not edit these by hand
+: 001  010  100  101  111  011  110
+
+It contains seven steps, as expected, covering every element other than =000=.
+
+** Elements as Patterns
+Next we'll convert the orbit into drum sequences using each element to sequence a single drum.
+We play a sequence for a while, then switch to the next sequence in the orbit.
+
+For example, running the kick through one trip around the orbit, playing each sequence one time:
+
+# reuses the seqgrid session; run the block in "Gates and Sequences" first
+#+name: orbitbars
+#+begin_src python :session seqgrid :results output html :exports results
+ORB = ["001", "010", "100", "101", "111", "011", "110"]
+rot = lambda k: ORB[k:] + ORB[:k]
+
+def bars(rows, top=None):
+    cell, gap, bar_gap, label_w, row_gap = 26, 4, 20, 52, 10
+    pad_l, pad_t, pad_b = 4, (24 if top else 6), 6
+    n, nbars = len(rows[0][1][0]), len(rows[0][1])
+    bar_w = n*cell + (n-1)*gap
+    w = pad_l + label_w + nbars*(bar_w+bar_gap) - bar_gap + 4
+    h = pad_t + len(rows)*(cell+row_gap) - row_gap + pad_b
+    s = [f'<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" '
+         f'style="max-width:{w}px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">']
+    for bi, t in enumerate(top or []):
+        x0 = pad_l + label_w + bi*(bar_w+bar_gap)
+        s.append(f'<text x="{x0+bar_w/2}" y="{pad_t-9}" font-size="12" text-anchor="middle" '
+                 f'fill="currentColor" opacity="0.65">{t}</text>')
+    for r, (label, elements) in enumerate(rows):
+        y = pad_t + r*(cell+row_gap)
+        s.append(f'<text x="{pad_l}" y="{y+cell/2+5}" font-size="15" fill="currentColor">{label}</text>')
+        for bi, el in enumerate(elements):
+            x0 = pad_l + label_w + bi*(bar_w+bar_gap)
+            for i, b in enumerate(el):
+                on = b == "1"
+                s.append(f'<rect x="{x0+i*(cell+gap)}" y="{y}" width="{cell}" height="{cell}" rx="5" '
+                         f'fill="{ON_COLOR if on else "none"}" stroke="{ON_COLOR if on else "#666"}" stroke-width="2"/>')
+    s.append('</svg>')
+    return "\n".join(s)
+
+print(bars([("kick", ORB)], ORB))
+#+end_src
+
+#+RESULTS: orbitbars
+#+begin_export html
+<svg viewBox="0 0 782 56" xmlns="http://www.w3.org/2000/svg" style="max-width:782px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">
+<text x="99.0" y="15" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.65">001</text>
+<text x="205.0" y="15" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.65">010</text>
+<text x="311.0" y="15" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.65">100</text>
+<text x="417.0" y="15" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.65">101</text>
+<text x="523.0" y="15" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.65">111</text>
+<text x="629.0" y="15" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.65">011</text>
+<text x="735.0" y="15" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.65">110</text>
+<text x="4" y="42.0" font-size="15" fill="currentColor">kick</text>
+<rect x="56" y="24" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="86" y="24" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="116" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="162" y="24" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="192" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="222" y="24" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="268" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="298" y="24" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="328" y="24" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="374" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="404" y="24" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="434" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="480" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="510" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="540" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="586" y="24" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="616" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="646" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="692" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="722" y="24" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="752" y="24" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+</svg>
+#+end_export
+
+This sounds like:
+#+begin_export html
+<audio controls src="../static/gflfsr/orbit_demo.wav"></audio>
+#+end_export
+
+# both generated by static/gflfsr/gen_orbit.py
+
+On its own, it's fun.
+Each element is 3 steps long, so beats have a length that's a multiple of 3, rather being in 4/4.
+I enjoy polyrhythmic/odd-metered music, so this is a good start.
+
+Let's add more drums to the beat.
+We'll give each instrument its own starting element, then play the sequences all together.
+This looks something like:
+#+name: orbitstack
+#+begin_src python :session seqgrid :results output html :exports results
+print(bars([("kick", ORB), ("snare", rot(2)), ("hihat", rot(4))]))
+#+end_src
+
+#+RESULTS: orbitstack
+#+begin_export html
+<svg viewBox="0 0 782 110" xmlns="http://www.w3.org/2000/svg" style="max-width:782px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">
+<text x="4" y="24.0" font-size="15" fill="currentColor">kick</text>
+<rect x="56" y="6" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="86" y="6" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="116" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="162" y="6" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="192" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="222" y="6" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="268" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="298" y="6" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="328" y="6" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="374" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="404" y="6" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="434" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="480" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="510" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="540" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="586" y="6" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="616" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="646" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="692" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="722" y="6" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="752" y="6" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<text x="4" y="60.0" font-size="15" fill="currentColor">snare</text>
+<rect x="56" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="86" y="42" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="116" y="42" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="162" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="192" y="42" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="222" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="268" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="298" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="328" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="374" y="42" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="404" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="434" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="480" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="510" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="540" y="42" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="586" y="42" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="616" y="42" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="646" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="692" y="42" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="722" y="42" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="752" y="42" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<text x="4" y="96.0" font-size="15" fill="currentColor">hihat</text>
+<rect x="56" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="86" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="116" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="162" y="78" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="192" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="222" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="268" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="298" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="328" y="78" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="374" y="78" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="404" y="78" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="434" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="480" y="78" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="510" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="540" y="78" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="586" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="616" y="78" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="646" y="78" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="692" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="722" y="78" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="752" y="78" width="26" height="26" rx="5" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+</svg>
+#+end_export
+
+And sounds like:
+#+begin_export html
+<audio controls src="../static/gflfsr/orbit_stack_demo.wav"></audio>
+#+end_export
+
+I do not like listening to this beat.
+
+It's too dense, there's nothing obviously repeating to gravitate to; the structure is all buried.
+Every instrument also eventually plays =111=, which adds more busyness to the beat.
+
+Picking a different =gen= or a different =start= does not resolve the problem because the instruments are all just rotating through every element in the field (other than =000=).
+The field has every possible 3 bit pattern, so this ends up just being dense and chaotic.
+
+#+begin_aside
+This is the opposite of what makes Euclidean rhythms work.
+A Euclidean rhythm designs a well-spaced out patterns for each parameter.
+An orbit just an /enumerates/ every possible pattern, and some patterns in a field aren't ones you'd pick to be musical.
+#+end_aside
+
+Let's try something different.
+
+** Bits as Patterns
+Let's "transpose" the sequences.
+For sequences that are 3 elements long, we'll sequence 3 different instruments.
+Then, as we move through the orbit, use each bit of each element as the gates for the 3 instruments.
+
+The pattern an instrument plays is defined by the whole orbit, rather than a single element.
+
+Here's a diagram to help this make sense:
+
+#+name: transpose
+#+begin_src python :session seqgrid :results output html :exports results
+def unpack(elements, labels):
+    cell, gap, lab_w = 34, 6, 56
+    pad_l, pad_t = 4, 14
+    txt_h, brace_h, arrow_h = 18, 8, 26
+    n, m = len(elements[0]), len(elements)
+    pitch = cell + gap
+    gy = pad_t + txt_h + brace_h + arrow_h
+    w, h = pad_l + lab_w + m*pitch - gap + 4, gy + n*pitch - gap + 6
+    x = lambda c: pad_l + lab_w + c*pitch
+    s = [f'<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" '
+         f'style="max-width:{w}px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">']
+    for c, el in enumerate(elements):
+        cx = x(c) + cell/2
+        s.append(f'<text x="{cx}" y="{pad_t+11}" font-size="14" text-anchor="middle" fill="currentColor">{el}</text>')
+        by = pad_t + txt_h
+        s.append(f'<path d="M{x(c)+1},{by} v{brace_h-3} h{cell-2} v-{brace_h-3}" fill="none" stroke="#666" stroke-width="1.5"/>')
+        ay = by + brace_h + 2
+        s.append(f'<line x1="{cx}" y1="{ay}" x2="{cx}" y2="{ay+arrow_h-12}" stroke="#666" stroke-width="1.5"/>')
+        s.append(f'<path d="M{cx},{ay+arrow_h-7} l-4.5,-7 l9,0 z" fill="#666"/>')
+        for r, b in enumerate(el):
+            on = b == "1"
+            s.append(f'<rect x="{x(c)}" y="{gy+r*pitch}" width="{cell}" height="{cell}" rx="7" '
+                     f'fill="{ON_COLOR if on else "none"}" stroke="{ON_COLOR if on else "#666"}" stroke-width="2"/>')
+    for r, lab in enumerate(labels):
+        s.append(f'<text x="{pad_l+lab_w-10}" y="{gy+r*pitch+cell/2+5}" font-size="14" '
+                 f'text-anchor="end" fill="currentColor">{lab}</text>')
+    s.append('</svg>')
+    return "\n".join(s)
+
+print(unpack(ORB, ["kick", "snare", "hihat"]))
+#+end_src
+
+#+RESULTS: transpose
+#+begin_export html
+<svg viewBox="0 0 338 186" xmlns="http://www.w3.org/2000/svg" style="max-width:338px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">
+<text x="77.0" y="25" font-size="14" text-anchor="middle" fill="currentColor">001</text>
+<path d="M61,32 v5 h32 v-5" fill="none" stroke="#666" stroke-width="1.5"/>
+<line x1="77.0" y1="42" x2="77.0" y2="56" stroke="#666" stroke-width="1.5"/>
+<path d="M77.0,61 l-4.5,-7 l9,0 z" fill="#666"/>
+<rect x="60" y="66" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="60" y="106" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="60" y="146" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<text x="117.0" y="25" font-size="14" text-anchor="middle" fill="currentColor">010</text>
+<path d="M101,32 v5 h32 v-5" fill="none" stroke="#666" stroke-width="1.5"/>
+<line x1="117.0" y1="42" x2="117.0" y2="56" stroke="#666" stroke-width="1.5"/>
+<path d="M117.0,61 l-4.5,-7 l9,0 z" fill="#666"/>
+<rect x="100" y="66" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="100" y="106" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="100" y="146" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<text x="157.0" y="25" font-size="14" text-anchor="middle" fill="currentColor">100</text>
+<path d="M141,32 v5 h32 v-5" fill="none" stroke="#666" stroke-width="1.5"/>
+<line x1="157.0" y1="42" x2="157.0" y2="56" stroke="#666" stroke-width="1.5"/>
+<path d="M157.0,61 l-4.5,-7 l9,0 z" fill="#666"/>
+<rect x="140" y="66" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="140" y="106" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="140" y="146" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<text x="197.0" y="25" font-size="14" text-anchor="middle" fill="currentColor">101</text>
+<path d="M181,32 v5 h32 v-5" fill="none" stroke="#666" stroke-width="1.5"/>
+<line x1="197.0" y1="42" x2="197.0" y2="56" stroke="#666" stroke-width="1.5"/>
+<path d="M197.0,61 l-4.5,-7 l9,0 z" fill="#666"/>
+<rect x="180" y="66" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="180" y="106" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="180" y="146" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<text x="237.0" y="25" font-size="14" text-anchor="middle" fill="currentColor">111</text>
+<path d="M221,32 v5 h32 v-5" fill="none" stroke="#666" stroke-width="1.5"/>
+<line x1="237.0" y1="42" x2="237.0" y2="56" stroke="#666" stroke-width="1.5"/>
+<path d="M237.0,61 l-4.5,-7 l9,0 z" fill="#666"/>
+<rect x="220" y="66" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="220" y="106" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="220" y="146" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<text x="277.0" y="25" font-size="14" text-anchor="middle" fill="currentColor">011</text>
+<path d="M261,32 v5 h32 v-5" fill="none" stroke="#666" stroke-width="1.5"/>
+<line x1="277.0" y1="42" x2="277.0" y2="56" stroke="#666" stroke-width="1.5"/>
+<path d="M277.0,61 l-4.5,-7 l9,0 z" fill="#666"/>
+<rect x="260" y="66" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="260" y="106" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="260" y="146" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<text x="317.0" y="25" font-size="14" text-anchor="middle" fill="currentColor">110</text>
+<path d="M301,32 v5 h32 v-5" fill="none" stroke="#666" stroke-width="1.5"/>
+<line x1="317.0" y1="42" x2="317.0" y2="56" stroke="#666" stroke-width="1.5"/>
+<path d="M317.0,61 l-4.5,-7 l9,0 z" fill="#666"/>
+<rect x="300" y="66" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="300" y="106" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="300" y="146" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<text x="50" y="88.0" font-size="14" text-anchor="end" fill="currentColor">kick</text>
+<text x="50" y="128.0" font-size="14" text-anchor="end" fill="currentColor">snare</text>
+<text x="50" y="168.0" font-size="14" text-anchor="end" fill="currentColor">hihat</text>
+</svg>
+#+end_export
+
+This sounds like:
+#+begin_export html
+<audio controls src="../static/gflfsr/lanes_demo.wav"></audio>
+#+end_export
+
+This new beat sounds way better to me.
+What's going on?
+
+* Every Instrument Plays the Same Rhythm
+Here are those three rhythms lined up against each other.
+
+# all orbits and rows below verified against ~/programming/gf-seq
+: kick    0011101
+: snare   0100111
+: hihat   1001110
+
+Maybe you can see what is happening.
+The snare is playing the same rhythm as the kick, just shifted right by two spaces.
+The hihat is also the same rhythm, this time shifted right by one space.
+
+#+name: rollover
+#+begin_src python :session seqgrid :results output html :exports results
+MARK = "#cc6666"
+
+def sr(bits, k=1):
+    return bits[-k:] + bits[:-k] if k else bits
+
+def shiftchain(bits, lanes, nrows):
+    cell, gap, note_w = 34, 6, 84
+    pad_l, pad_t, row_gap = 8, 8, 26
+    m = len(bits)
+    pitch = cell + gap
+    gx, gw = pad_l, m*pitch - gap
+    w = gx + gw + note_w
+    h = pad_t + nrows*cell + (nrows-1)*row_gap + 8
+    s = [f'<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" '
+         f'style="max-width:{w}px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">']
+    for r in range(nrows):
+        row = sr(bits, r)
+        y = pad_t + r*(cell+row_gap)
+        if row in lanes:
+            s.append(f'<text x="{gx+gw+16}" y="{y+cell/2+5}" font-size="14" '
+                     f'fill="currentColor">{lanes[row]}</text>')
+        for i, b in enumerate(row):
+            on = b == "1"
+            edge, sw = (MARK, 3.5) if i == r % m else ((ON_COLOR if on else "#666"), 2)
+            s.append(f'<rect x="{gx+i*pitch}" y="{y}" width="{cell}" height="{cell}" rx="7" '
+                     f'fill="{ON_COLOR if on else "none"}" stroke="{edge}" stroke-width="{sw}"/>')
+        if r == nrows-1:
+            break
+        ty, cx = y + cell + row_gap/2 + 1, gx + gw/2
+        s.append(f'<line x1="{cx-13}" y1="{ty-4}" x2="{cx+7}" y2="{ty-4}" '
+                 f'stroke="currentColor" stroke-width="1.5" opacity="0.6"/>')
+        s.append(f'<path d="M{cx+13},{ty-4} l-7,-4 l0,8 z" fill="currentColor" opacity="0.6"/>')
+    s.append('</svg>')
+    return "\n".join(s)
+
+print(shiftchain("0011101", {"0011101": "kick", "1001110": "hihat", "0100111": "snare"}, 3))
+#+end_src
+
+#+RESULTS: rollover
+#+begin_export html
+<svg viewBox="0 0 366 170" xmlns="http://www.w3.org/2000/svg" style="max-width:366px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">
+<text x="298" y="30.0" font-size="14" fill="currentColor">lane 1</text>
+<rect x="8" y="8" width="34" height="34" rx="7" fill="none" stroke="#cc6666" stroke-width="3.5"/>
+<rect x="48" y="8" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="88" y="8" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="128" y="8" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="168" y="8" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="208" y="8" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="248" y="8" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<line x1="132.0" y1="52.0" x2="152.0" y2="52.0" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+<path d="M158.0,52.0 l-7,-4 l0,8 z" fill="currentColor" opacity="0.6"/>
+<text x="298" y="90.0" font-size="14" fill="currentColor">lane 3</text>
+<rect x="8" y="68" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="48" y="68" width="34" height="34" rx="7" fill="none" stroke="#cc6666" stroke-width="3.5"/>
+<rect x="88" y="68" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="128" y="68" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="168" y="68" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="208" y="68" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="248" y="68" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<line x1="132.0" y1="112.0" x2="152.0" y2="112.0" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+<path d="M158.0,112.0 l-7,-4 l0,8 z" fill="currentColor" opacity="0.6"/>
+<text x="298" y="150.0" font-size="14" fill="currentColor">lane 2</text>
+<rect x="8" y="128" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="48" y="128" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="88" y="128" width="34" height="34" rx="7" fill="none" stroke="#cc6666" stroke-width="3.5"/>
+<rect x="128" y="128" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
+<rect x="168" y="128" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="208" y="128" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+<rect x="248" y="128" width="34" height="34" rx="7" fill="#81a2be" stroke="#81a2be" stroke-width="2"/>
+</svg>
+#+end_export
+
+I tried many different start values, gen values, fields polynomials, etc, and this property continued to hold in all configurations.
+
+For example, with =gen=100= (and the same field/start), we get a completely different orbit, but the rows are still rotations of each other:
+: orbit   001 100 111 110 010 101 011
+: kick    0111010
+: snare   0011101
+: hihat   1010011
+
+Here's another one for a larger field (follow the =1111= at the end of the first row):
+: orbit  0001 0010 0100 1000 0011 0110 1100 1011 0101 1010 0111 1110 1111 1101 1001
+: rows   000100110101111
+:        001001101011110
+:        010011010111100
+:        100010011010111
+
+No matter what, this orbit transpose thing seems to produce a bunch of instrument tracks that are just shifts of each other.
+
+* This is Strange
+Why does the sequence of bit1 have any relationship to the sequence of bit2?
+
+An orbit is built by multiplying: take an element, multiply by =gen=, write down the answer, repeat.
+
+Look back at the multiplication table for the 4 element field.
+Consider =01 × 01 = 01= and =11 × 11 = 10=.
+The last bit of every input is a 1, but one answer ends in a 1 and the other ends in a 0, so the last bit of an answer can't be worked out from the last bits of the inputs.
+Multiplication mixes the rows together, and every step of the orbit is a multiplication, so no row is ever off doing its own thing.
+
+So how did all three end up as the /same/ sequence shifted around?
+
+Look along the whole orbit, instead of at one product, and multiplying by =010= turns out to mostly copy bits between rows:
+- the hihat takes whatever the kick had a step earlier
+- the snare takes whatever the hihat had a step earlier
+- only the kick gets a genuinely new bit, worked out from the kick and the snare
+
+Every step of the orbit is that same multiplication, so the copying happens at every step.
+The hihat is always playing what the kick played a step ago, and the snare is always playing what the hihat played a step ago, which is what forces the rows to be the same sequence at different offsets.
+
+The kick is the exception, and that it never manages to break the pattern is still surprising to me, so I did spend a few plane rides formalizing and writing out a complete proof.
+
+#+begin_export html
+<details>
+<summary>A sketch of the proof</summary>
+#+end_export
+
+FIXME left off here; need to finish filling out the proof sucinctly
+
+Write the orbit as $e(t) = start \times gen^t$.
+
+Suppose some row repeated early, so that reading it from step $t$ gave the same sequence as reading it from step $t+j$.
+Addition is XOR, so that's the same as saying the row of $e(t) + e(t+j)$ is zero the whole way along.
+
+But adding two orbits together gives another orbit:
+$$e(t) + e(t+j) = start \times gen^t + start \times gen^{t+j} = \left(start \times (1 + gen^j)\right) \times gen^t$$
+
+Short of a full lap, $gen^j$ is never 1, so $1 + gen^j$ isn't zero, and neither is that new starting element.
+That makes it a real orbit, and a real orbit can't have an all-zero row: it visits every nonzero element, including ones with a 1 in that position.
+
+So no row can repeat early, and all $2^n-1$ shifts of a row are different sequences.
+The modulus forces every row to obey the same rule, where each step is the XOR of a fixed few steps before it, and there are exactly $2^n-1$ nonzero sequences that obey it.
+The shifts account for all of them, so every row has to be one of the shifts.
+
+#+begin_export html
+</details>
+#+end_export
+
+* Conclusion
+It turns out I hadn't discovered anything.
+Reading an orbit a row at a time is a [[https://en.wikipedia.org/wiki/Linear-feedback_shift_register][Linear Feedback Shift Register]]: a pile of bits that shifts along on every tick, with a new one XORed in at the end.
+They've been used since the 1960s to make random-looking bits in hardware, the sequences they produce are called /m-sequences/, and "every bit of the register runs the same sequence at a different offset" is a standard fact about them.
+
+So I rebuilt a piece of old hardware by accident, and it happens to make decent drum patterns.
+
+The rhythms work.
+I'm still looking for the melodies.
+
+
+* A Note on AI
+- wrote code for diagrams, but many were (badly) hand drawn first then I asked it for code. I considered just using the drawings, which migth have been more fun and more human?
+- wrote code for the media, but just because exporting from tidal/haskell where I'm doing the work was tricky
+- reviewed the prose heavily, and modified it somewhat, but I wrote most of the prose myself as a human
