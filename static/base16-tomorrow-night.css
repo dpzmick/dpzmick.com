@@ -2503,3 +2503,11 @@ blockquote {
     -webkit-filter: invert(1);
     filter: invert(1);
 }
+
+/* hand-added, not from the base16 export */
+h1.title, h2, h3, h4, summary {
+    color: #81a2be;
+}
+
+/* so native widgets (audio controls, scrollbars) match the theme */
+:root { color-scheme: dark; }

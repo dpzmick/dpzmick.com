@@ -1,3 +1,8 @@
+/* keep the gutter so the column doesn't shift between pages */
+html {
+    overflow-y: scroll;
+}
+
 body {
     font-family: 'Merriweather', 'PT Serif', Georgia, 'Times New Roman', serif;
     font-size: 1rem;
@@ -6,8 +11,30 @@ body {
 
 #content, #preamble, #postamble {
     margin: 5px auto;
-    max-width: 65rem;
+    max-width: 55rem;
     width: 80%; /* effectively min */
+}
+
+h2 { border-bottom: 1px solid #666; padding-bottom: 0.2em; }
+
+/* lists hug the sentence that introduces them */
+p:has(+ ul), p:has(+ ol) {
+    margin-bottom: 0.3em;
+}
+
+p + ul, p + ol {
+    margin-top: 0.3em;
+}
+
+code {
+    white-space: nowrap;
+    font-size: 0.9em;
+}
+
+/* org puts <code> inside <pre>; don't nowrap those */
+pre code {
+    white-space: inherit;
+    font-size: inherit;
 }
 
 div #bulb {
@@ -26,8 +53,10 @@ div #bulb {
     overflow-x: auto;
     background-color: rgba(0, 0, 0, 5%);
     background-blend-mode: darken;
-    font-family: "Consolas", "Monaco", "Lucida Console", "Liberation Mono", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Courier New"
-    line-height: 1.0;
+    font-family: "Consolas", "Monaco", "Lucida Console", "Liberation Mono", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Courier New";
+    /* 1.0 overflows the box and gives every block a bogus scrollbar */
+    line-height: 1.25;
+    padding: 0.4em 0.6em;
 }
 
 img {
@@ -46,9 +75,12 @@ blockquote {
     padding-left: 8px;
 }
 
+summary { cursor: pointer; }
+summary:hover { text-decoration: underline; }
+
 .footpara {
     width: 99%;
-    text-alignt: left;
+    text-align: left;
     float: right;
     padding: 0;
     margin: 0;
@@ -74,6 +106,14 @@ table thead tr th {
 .footdef {
     line-height: 1.5;
     padding-bottom: 3px;
+}
+
+#perf-stats {
+    display: block;
+    font-family: "Consolas", "Monaco", "Lucida Console", "Liberation Mono", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Courier New";
+    font-size: 0.75rem;
+    opacity: 0.6;
+    padding-top: 0.5em;
 }
 
 #rss img {

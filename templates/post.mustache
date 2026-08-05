@@ -5,11 +5,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>David Zmick</title>
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-  <script type='text/javascript' src='/static/scripts.js'></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+  <script>
+    // before CSS loads the browser paints its own background; that flashes
+    document.documentElement.style.backgroundColor =
+      window.localStorage.getItem("theme") === "light" ? "#ffffff" : "#1d1f21";
+  </script>
+  <script type='text/javascript' src='/static/scripts.js' defer></script>
   <link rel='stylesheet' type='text/css' href='/static/base.css' />
-  <link rel='stylesheet' type='text/css' id='theme-css' href='/static/base16-tomorrow-night.css' />
+  <script>
+    // write the right sheet directly, so light mode never loads the dark one
+    document.write("<link rel='stylesheet' type='text/css' id='theme-css' href='/static/" +
+      (window.localStorage.getItem("theme") === "light" ? "base16-tomorrow" : "base16-tomorrow-night") +
+      ".css' />");
+  </script>
+  <noscript><link rel='stylesheet' type='text/css' id='theme-css' href='/static/base16-tomorrow-night.css' /></noscript>
 </head>
 
 <body>
@@ -30,11 +40,8 @@
     <div id='#postamble'>
       <a href='/'>home</a>
       <a class='need-js' href='#/' onclick='switchModes()'>switch-color-mode</a>
+      <span id='perf-stats'></span>
     </div>
   </div>
 </body>
-</html>
-
-</body>
-
 </html>

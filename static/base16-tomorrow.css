@@ -2488,3 +2488,11 @@ a:hover {
 blockquote {
     border-left: 4px solid #666666;
 }
+
+/* hand-added, not from the base16 export */
+h1.title, h2, h3, h4, summary {
+    color: #4271ae;
+}
+
+/* so native widgets (audio controls, scrollbars) match the theme */
+:root { color-scheme: light; }

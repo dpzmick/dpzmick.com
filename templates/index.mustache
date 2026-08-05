@@ -5,9 +5,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>David Zmick</title>
-  <script type='text/javascript' src='/static/scripts.js'></script>
+  <script>
+    // before CSS loads the browser paints its own background; that flashes
+    document.documentElement.style.backgroundColor =
+      window.localStorage.getItem("theme") === "light" ? "#ffffff" : "#1d1f21";
+  </script>
+  <script type='text/javascript' src='/static/scripts.js' defer></script>
   <link rel='stylesheet' type='text/css' href='/static/base.css' />
-  <link rel='stylesheet' type='text/css' id='theme-css' href='/static/base16-tomorrow-night.css' />
+  <script>
+    // write the right sheet directly, so light mode never loads the dark one
+    document.write("<link rel='stylesheet' type='text/css' id='theme-css' href='/static/" +
+      (window.localStorage.getItem("theme") === "light" ? "base16-tomorrow" : "base16-tomorrow-night") +
+      ".css' />");
+  </script>
+  <noscript><link rel='stylesheet' type='text/css' id='theme-css' href='/static/base16-tomorrow-night.css' /></noscript>
 </head>
 
 <body>
@@ -18,7 +29,7 @@
   </div>
   <div id="content">
     <header>
-      <h1 class="title">David Zmick</h1>
+      <h1>David Zmick</h1>
     </header>
 
     <p>
@@ -43,7 +54,7 @@
     <h2>Blog Posts: <span id=rss><a href="/feed.xml"><img src="/static/rss.png"></a></span></h2>
     <ul>
     {{ #posts }}
-    <li><code>{{ DATE }}<code> - <a href="{{ PERMALINK }}">{{ TITLE }}</a></li>
+    <li><code>{{ DATE }}</code> - <a href="{{ PERMALINK }}">{{ TITLE }}</a></li>
     {{ /posts }}
     </ul>
   </div>
@@ -52,6 +63,7 @@
     <div id='#postamble'>
       <a href='/'>home</a>
       <a class='need-js' href='#/' onclick='switchModes()'>switch-color-mode</a>
+      <span id='perf-stats'></span>
     </div>
   </div>
 </body>
