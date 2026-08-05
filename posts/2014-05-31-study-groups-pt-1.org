@@ -39,28 +39,28 @@ $$ \frac{dF}{dn} = \alpha - \beta n $$
 
 where:
 
-- $ F $ is the fitness function.
-- $ n $ is the number of people currently in the group
-- $ \alpha $ is an individual's contribution to the study group
-- $ \beta $ is an individual's detriment to the study group
+- \( F \) is the fitness function.
+- \( n \) is the number of people currently in the group
+- \( \alpha \) is an individual's contribution to the study group
+- \( \beta \) is an individual's detriment to the study group
 
-Let's explore this for a moment before moving on. Consider just $
-\frac{dF}{dn} = \alpha $. This piece of the equation tells us that as
+Let's explore this for a moment before moving on. Consider just
+\( \frac{dF}{dn} = \alpha \). This piece of the equation tells us that as
 the number of people in the study group changes, the change in the
-fitness of the study group is proportional to $ \alpha $, the individual
+fitness of the study group is proportional to \( \alpha \), the individual
 contribution rate. But, we know that as the number of people increases,
 the effectiveness of the group decreases, so subtract something that
-grows as the population grows: $ \beta n $.
+grows as the population grows: \( \beta n \).
 
 This equations is simple to solve, and we should impose the initial
-condition $ F(0) = 0 $, as a group with zero members has 0 fitness. The
+condition \( F(0) = 0 \), as a group with zero members has 0 fitness. The
 solutions then are:
 
 $$ F(n) = \alpha n - \frac{\beta}{2} n^2 $$
 
 Additionally, we probably want to know what the optimal study group size
-is. We can easily find (by setting $ \frac{dF}{dn} = 0 $) that the
-optimal size is $ \frac{\alpha}{\beta} $.
+is. We can easily find (by setting \( \frac{dF}{dn} = 0 \)) that the
+optimal size is \( \frac{\alpha}{\beta} \).
 
 * The Simulation
 

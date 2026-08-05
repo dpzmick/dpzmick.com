@@ -36,8 +36,8 @@ differential equation:
 
 $$ \frac{dF}{dn} = \alpha - \beta n $$
 
-where $ \alpha $ is an individual member's contribution (every member is
-assumed to have the same contribution) and $ \beta $ is the amount the
+where \( \alpha \) is an individual member's contribution (every member is
+assumed to have the same contribution) and \( \beta \) is the amount the
 member will detract from the group (also assumed the same for all
 members).
 
@@ -66,8 +66,8 @@ There are a couple obvious problems with this model.
    selflessness.
 
    - However, I did a small test to see how much of an impact this has
-     and I (weakly) concluded that for large $ n $ this effect goes
-     away. Unfortunatley, I'm not really testing with large $ n $, so we
+     and I (weakly) concluded that for large \( n \) this effect goes
+     away. Unfortunatley, I'm not really testing with large \( n \), so we
      will have to take this fact into consideration in our
      interpretation of the results.
 
@@ -97,7 +97,7 @@ selflessness will do a better job at keeping groups close to optimal
 size (or at least not create tons of 1 person groups or tons of very
 large groups).
 
-So, for some values of $ \alpha $, and $ \beta $, I varied both the
+So, for some values of \( \alpha \), and \( \beta \), I varied both the
 selflessness chance and the group split chance from 0.0 to 0.95, in 5
 percent increments. So every pair is tested.
 
