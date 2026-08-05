@@ -14,6 +14,11 @@ getting a wav file back out of Tidal is a pain.
 
 These wav generator scripts are fully AI generated.
 """
+import sys
+
+# this whole directory is published verbatim, so don't leave __pycache__ in it
+sys.dont_write_bytecode = True
+
 from gen_gates import (HIHAT_SAMPLE, KICK_SAMPLE, SNARE_SAMPLE, SR, STEP_DUR,
                        load_sample, write_wav)
 
