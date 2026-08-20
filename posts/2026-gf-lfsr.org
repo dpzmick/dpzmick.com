@@ -175,8 +175,7 @@ When a combination allows the rules to work, we call it a /field/.
 A field built from only a /finite/ collection of things is called a Finite Field, or Galois Field (named after [[https://en.wikipedia.org/wiki/%C3%89variste_Galois][Évariste Galois]]).
 
 *** Prime Number Clock Math
-On a clock, "wrapping around" is secretly a remainder: =13 ÷ 12= is "1 with a remainder of 1."
-The remainder is what the clock shows.
+On a clock, "wrapping around" is actually taking a remainder: =13 ÷ 12= is "1 with a remainder of 1."
 We call the wrap-around number the "modulus"; this style of math is called "modular arithmetic".
 
 We can now build a working Galois Field using:
@@ -252,14 +251,12 @@ print(multable(m, hl))
 | 6 | 0 | *6* | 5 | 4 | 3 | 2 | 1 |
 :end:
 
-These are the ways to multiply numbers together and get 6 (with a modulus of 7):
+These are the ways to multiply numbers together and get 6:
 - =3 × 2= (or =2 × 3=)
 - =6 × 1= (or =1 × 6=)
 - =4 × 5= (or =5 × 4=)
 
-There is no duplication; the only answer to =6 ÷ 2= is 3.
-Ignore zero; every number times zero gives zero, but division by zero isn't defined in normal math either.
-
+Ignoring zero (division by zero isn't defined normally either), the only answer to =6 ÷ 2= is 3.
 Work this out for enough values to convince yourself that we can still do division.
 
 #+begin_aside
@@ -272,7 +269,7 @@ So what is =4 ÷ 4=?
 It could be =1= or =4=.
 #+end_aside
 
-So, with a modulus of 7 (or /any prime number/): addition works, multiplication works, division works, and subtraction works too (check it yourself).
+So, with a modulus of 7 (or /any prime number/): addition works, subtraction works (try it! use the addition table), multiplication works, division works.
 With these basics working, most of normal math works too.
 
 *** Math Using Gate Sequences
@@ -316,8 +313,12 @@ So we have all four operations:
 - Division: complicated, but also doable
 
 Nothing here is special about length two.
-For any length $n$, multiplication can be defined on the $2^n$ bitstrings so that they form a field.
-There's usually more than one way to do it, and each choice gives a different multiplication table.
+For any length $n$, we get sequences of length $2^n$, and, we can form a field.
+There's more than one way to define multiplication for a particular $n$, but the fields are structurally equivalent (isomorphic) regardless of which multiplication table you pick.
+
+# NOTE: we're using isomorphic a lot, but I am leaving it undefined on purpose.
+# if someone knows the word, this makes sense, if they do not, they can skip over this (or even better they can google it)
+# I am introducing a lot of concepts to some readers, trying to keep it from being overwhelimg
 
 #+begin_aside
 You might notice that $2^n$ is not /prime/, which was our requirement from the previous section.
@@ -339,16 +340,21 @@ $$
 1 x^3 + 0 x^2 + 1 x^1 + 1 x^0
 $$
 
-The modulus is an irreducible polynomial, so we do our operation normally, divide by the modulus (using long division of polynomials), and keep the remainder.
+The modulus is an irreducible polynomial.
+A given $n$ might have a few different choices for the irreducible polynomial.
+We do our operation normally, divide by the modulus (using long division of polynomials), and keep the remainder.
+
+The examples in this post use $x^2+x+1$ for length two sequences, $x^3+x^2+1$ for length three, and $x^4+x+1$ for length four.
 
 Addition and subtraction are just bitwise XOR.
 Multiplying by $x$ is just a left-shift by 1.
 
 Once we have addition, subtraction, and multiplication by $x$, we can build the "remainder function" by adding shifted copies of the irreducible polynomial until we have the remainder.
 
-With those pieces in hand, we can implement multiplication and division of the full elements.
+With those pieces, we can implement multiplication and division.
 
-[[https://xorvoid.com/galois_fields_for_great_good_00.html][Learn you Galois Fields for Great Good]] goes into much more detail, read that if the above seems interesting to you.
+[[https://xorvoid.com/galois_fields_for_great_good_00.html][Learn you Galois Fields for Great Good]] goes into much more detail.
+Read that if this seems interesting to you!
 
 #+begin_export html
 </details>
@@ -852,93 +858,152 @@ How does it work?
 
 * Proof Sketch
 A real proof is needed.
-.... FIXME
 
-FIXME write the proof first, then figure out how to provide some rough intuition.
+.... FIXME a short sketch? is that doable without the fundamentals?
+Do not expect people to make it all the way through, should hint at this, or collapse the proof?
+subheaders dont work in the proof.
+also FIXME since I'm introducing the actual construction here, should I remove the aside above (and the aside features entirely?)
+
+** Setup
+We must construct the field $GF(p^n)$, $p$ prime, as an /extension field/ over $GF(p)$.
+
+Definitions:
+- irreducible polynomial - a polynomial that is not factorable using coefficients in $GF(p)$. Think of it like a prime number.
+- primitive polynomial - a special case of the irreducible polynomial.
+- primitive element - an element in the field that is a root of a primitive polynomial
+  
+Pick an irreducible polynomial in $x$ over $GF(p)$, $f(x)$.
+Use $f(x)$ as the modulus of the field.
+
+When the entire field is generated directly from the irreducible polynomial, the irreducible polynomial is primitive.
+Primitive vs irreducible, as far as I understand, is determined by simply checking the property, similar to primality.
+
+From now on, we assume we are working in a field generated by a primitive polynomial.
+The other fields are isomorphic to it, of course, but the exact bit patterns work differently and the construction is harder to follow.
+
+The construction algorithm is, assume $\alpha$ is a root of $f(x)$.
+Then, the field is
+$$ \{ 0 \} \cup \{ \alpha^i \mid i \in [0, p^n-1) \} $$
+
+** Example
+For example, we previously used $f(x) = x^2 + x + 1$ as the modulus for $GF(2^2)$.
+$f(x)$ has no root in $GF(2)$.
+Try it, $f(0)=1$ and $f(1)=1$.
+
+$\alpha$ is a value that makes $x^2 + x + 1 = 0$ in $GF(4)$ (which is a bit circular).
+These are $\alpha=x$ and $\alpha=x+1$.
+Remember, operations are done modulo $f(x)$, so what we want is the remainder after dividing by $f(x)$.
+- remainder of $f(x) / f(x)$ is $0$
+- remainder of $f(x+1) / f(x)$ is $0$ (work it out)
+
+# (x+1)(x+1) + x + 1 + 1
+# x^2 + x + x + 1 + x + 1 + 1   -- cancel the 1+1=0 and x+x=0
+# x^2 + x + 1
+
+Either root works as $\alpha$.
+
+# the modulus is always the divisor: you compute a power of alpha, then divide
+# what you got by the modulus and keep the remainder
+#
+# using alpha = x+1
+#
+# alpha^2 = (x+1)(x+1) = x^2 + x + x + 1 = x^2 + 1
+#
+#                         1  remainder x
+#              --------------
+#  x^2 + x + 1 | x^2     + 1
+#              + x^2 + x + 1
+#                -------------
+#                  0   + x + 0
+#
+# or alpha = x, then alpha^2 = x^2
+#
+#                         1  remainder x + 1
+#              --------------
+#  x^2 + x + 1 | x^2
+#              + x^2 + x + 1
+#                -------------
+#                  0   + x + 1
+
+Taking $\alpha = x + 1$, the field's elements are:
+| $\alpha$   | polynomial | bitstring |
+|------------+------------+-----------|
+| 0          | 0          |        00 |
+| $\alpha^0$ | 1          |        01 |
+| $\alpha^1$ | x + 1      |        11 |
+| $\alpha^2$ | x          |        10 |
+
+The /order/ that we list the elements in the table changes, but the resulting field is the same either way.
+We get the same four elements and the same element-wise addition/multiplication tables
+
+The element $x$ is a primitive element (it is a root of the primitive polynomial).
+
+When we generate an orbit using the primitivie element, it will visit every element of the field (other than 0).
+We already know this; $\alpha$, which we used to generate the field, was a primitive element.
+The orbit starting at 1 with gen $\alpha$ produced the field, so the orbit would visit the entire field.
+
+FIXME "a primitive element" or "the primitative element"?
+
+** Proof
+
+Define $e(t)$ to be the $t$'th element of an orbit generated by a primitive element $x$.
+$$
+e(t) = start * x^t
+$$
+
+It is always possible to write the irreducible polynomial as something like
+$$
+\sum_{i=0}^n c_i x^i
+$$
+
+We can always pick a root of $x^n$, giving us roots of $x^n$ and $ \sum_{i=0}^{n-1} c_i x^i$
+
+#+begin_aside
+For example, with $f(x) = x^2 + x + 1$, we set $x^2 = x + 1$.
+#+end_aside
+
+Now, take a look at the first $n$ terms of $e(t)$.
+
+| $t$ | $e(t)$      |
+|-----+-------------|
+|   0 | start * 1   |
+|   1 | start * x   |
+|   2 | start * x^2 |
+| ... | ...         |
+|   n | start * x^n |
 
 
-# PROOF SKETCH: FIXME
-# Look along the whole orbit, instead of at one product, and multiplying by =010= turns out to mostly copy bits between rows:
-# - the hihat takes whatever the kick had a step earlier
-# - the snare takes whatever the hihat had a step earlier
-# - only the kick gets a genuinely new bit, worked out from the kick and the snare
+That $n$th term can always be rewritten with respect to some previous term.
+$$
+start * x^n = start * (\sum_{i=0}^{n-1} c_i * x^i)
+$$
 
-# Every step of the orbit is that same multiplication, so the copying happens at every step.
-# The hihat is always playing what the kick played a step ago, and the snare is always playing what the hihat played a step ago, which is what forces the rows to be the same sequence at different offsets.
+#+begin_aside
+In our example, $e(2) = start * x^2$.
+Which is also $e(2) = start * (x + 1)$.
+#+end_aside
 
-# The kick is the exception, and that it never manages to break the pattern is still surprising to me.
-# =010= is also the easiest =gen= to watch this happen with, because multiplying by it is nearly a plain shift already.
+Distribute start inside:
+$$
+start * x^n = (\sum_{i=0}^{n-1} start * c_i * x^i)
+$$
 
-# Other choices land on the same result without ever looking so tidy along the way, which is where a proof starts to be worth having, so I did spend a few plane rides formalizing and writing one out.
-# Once I had the proof written, it was reasonably clear what is going on.
-# Plus, I was able to find some counterexamples and understand the conditions under which this property does not occur.
+#+begin_aside
+$e(2) = (start * x) + (start + 1)$
+#+end_aside
 
+We can always take $x^k = x^n * x^{k-n}$ as well, so when $t<n-1$:
+$$
+e(k) = start * x^n = start * x^{k-n} * x^n = (start * x^n) * x^{k-n}
+$$
 
-#+begin_export html
-<details>
-<summary>More complete proof</summary>
-#+end_export
+Which means that, at position $n$, we are just performing combinations of previous elements.
+$c_i$ is always either 0 or 1.
 
-FIXME left off here; need to finish filling out the proof sucinctly
-
-Write the orbit as $e(t) = start \times gen^t$.
-
-Suppose some row repeated early, so that reading it from step $t$ gave the same sequence as reading it from step $t+j$.
-Addition is XOR, so that's the same as saying the row of $e(t) + e(t+j)$ is zero the whole way along.
-
-But adding two orbits together gives another orbit:
-$$e(t) + e(t+j) = start \times gen^t + start \times gen^{t+j} = \left(start \times (1 + gen^j)\right) \times gen^t$$
-
-Short of a full lap, $gen^j$ is never 1, so $1 + gen^j$ isn't zero, and neither is that new starting element.
-That makes it a real orbit, and a real orbit can't have an all-zero row: it visits every nonzero element, including ones with a 1 in that position.
-
-So no row can repeat early, and all $2^n-1$ shifts of a row are different sequences.
-The modulus forces every row to obey the same rule, where each step is the XOR of a fixed few steps before it, and there are exactly $2^n-1$ nonzero sequences that obey it.
-The shifts account for all of them, so every row has to be one of the shifts.
 
 *** Where this breaks
+FIXME
 
-The proof uses the orbit being /full/ in three places.
-
-"Short of a full lap, $gen^j$ is never 1" needs $gen$ to have order exactly $2^n-1$.
-"A real orbit can't have an all-zero row" needs the orbit to visit every nonzero element.
-The count at the end needs the row to be $2^n-1$ steps long, so the shifts cover every nonzero solution instead of just some of them.
-
-Without that, it can fail.
-Here's a 5 step orbit in $GF(16)$, modulus =10011=, =gen=1000=, =start=0001=:
-
-: orbit  0001 1000 1100 1010 1111
-: rows   01111
-:        00101
-:        00011
-:        10001
-
-No row is all zeros, but these still aren't rotations of each other.
-Rotating a sequence can't change how many hits it has, and the first row has four while the rest have two.
-
-A full orbit hits every nonzero element once, so every row ends up with the same number of hits ($2^{n-1}$).
-A short orbit only gets part of the field, and the rows come out uneven.
-An all-zero row is the extreme case.
-
-Plenty of short orbits still work out to rotations, they just aren't guaranteed to.
-I haven't worked out which ones.
-Sorting them by length turns up something suggestive though.
-In $GF(64)$, every orbit of length 3 or 7 works, no orbit of length 21 does, and orbits of length 9 work exactly a ninth of the time.
-3 and 7 are $2^2-1$ and $2^3-1$, the orbit lengths of the $GF(4)$ and $GF(8)$ subfields sitting inside $GF(64)$, so those orbits have a smaller field to be full /in/.
-The counterexample above has length 5, and $GF(16)$ has no subfield to match it.
-
-That covers the lengths that always work and the ones that never do, but not the length 9 orbits that sometimes do.
-
-FIXME either work out the length 9 case or cut this back to "the full case is the one I proved"
-
-This is also why the examples earlier never broke.
-Orbit length divides $2^n-1$, and for $GF(8)$ that's 7, a prime, so every =gen= other than =001= has order 7.
-There are no short orbits to find.
-$GF(16)$ is the first field with any, since $15 = 3 \times 5$.
-
-#+begin_export html
-</details>
-#+end_export
 
 * Conclusion
 It turns out I hadn't discovered anything.
