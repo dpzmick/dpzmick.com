@@ -1,5 +1,5 @@
 #+TITLE: Galois Field Orbits and Shift Registers
-#+DATE: <2026-07-23>
+#+DATE: <2026-08-26>
 
 # Intended audience/flow, so we don't lose the plot as this grows (and as AI
 # hacks on the doc a bit, though this is mostly human written):
@@ -14,16 +14,16 @@
 #   with minimal math to feel *why the shift-register property is weird*,
 #   even if they never touch the formal proof. This is the hardest section
 #   to calibrate and deserves the most care.
-# - The proof itself (specific case, then general case): will go to another post
+# - The short proof here should be followable by a determined reader; a more
+#   formal treatment and the full LFSR connection can go in another post.
 
 I have been trying to generate musical-sounding rhythms and melodies using Galois Fields.
 [[https://cgm.cs.mcgill.ca/~godfried/publications/banff.pdf][Euclidean (algo)Rhythms]] are frequently used in electronic music, so there is some prior art for mathy things producing musically interesting results.
-Euclidean Rhythms provide ways to "fill space optimally," which ends up sounding musical.
-In $GF(2^n)$, Galois Field elements are bitstrings, which map naturally to gate sequences.
-Since these sequences are field elements that we can do math over, we can manipulate them to form new sequences, combine them in exciting ways, or move between them.
-It's likely that there's some way to produce something musical.
+In $GF(2^n)$ (the Galois Field of $2^n$ elements), the field elements are bitstrings, which map naturally to gate sequences.
+Since we can do math over field elements, we can do math over sequences.
+Maybe we can combine sequences in exciting ways.
 
-Most of what I've tried so far hasn't been interesting, but one attempt produced a series of repeated (decent sounding) shifts of the same sequence, which I found surprising.
+Most of what I've tried with fields so far hasn't been interesting, but one thing produced a series of decent-sounding "shifts" of the same sequence, which I found surprising.
 We need two things to understand this: a way to write rhythms as zeros and ones, and a way to treat those same zeros and ones as elements of a Galois Field.
 
 #+begin_export html
@@ -39,8 +39,6 @@ We need two things to understand this: a way to write rhythms as zeros and ones,
 #+end_export
 
 * Ingredients
-First we'll need to go over a few prerequisites.
-
 ** Gates and Sequences
 In electronic music, sequences of "gates" express rhythms.
 A gate is either "open" or "closed."
@@ -56,7 +54,7 @@ Drawn out, those would be:
 #+begin_src python :session seqgrid :results output html :exports results
 ON_COLOR = "#81a2be"
 
-def grid(rows, n=4):
+def grid(rows, n=4, title="Gate sequences over four steps"):
     cell, gap, label_w = 44, 12, 140
     pad_l, pad_t, pad_b, row_gap = 4, 14, 26, 16
     nrows = len(rows)
@@ -67,6 +65,7 @@ def grid(rows, n=4):
     x1 = pad_l + label_w + (n-1)*(cell+gap) + cell/2
     s = [f'<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" '
          f'style="max-width:{w}px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">']
+    s.append(f'<title>{title}</title>')
     s.append(f'<line x1="{x0}" y1="{tick_y}" x2="{x1}" y2="{tick_y}" stroke="#666" stroke-width="1"/>')
     for i in range(n):
         x = pad_l + label_w + i*(cell+gap) + cell/2
@@ -82,12 +81,14 @@ def grid(rows, n=4):
     s.append('</svg>')
     return "\n".join(s)
 
-print(grid([("kick 1000", "1000"), ("snare 0010", "0010"), ("hihat 0101", "0101")]))
+print(grid([("kick 1000", "1000"), ("snare 0010", "0010"), ("hihat 0101", "0101")],
+           title="Kick, snare, and hihat gate sequences over four steps"))
 #+end_src
 
 #+RESULTS: seqgrid-def
 #+begin_export html
 <svg viewBox="0 0 386 204" xmlns="http://www.w3.org/2000/svg" style="max-width:386px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">
+<title>Kick, snare, and hihat gate sequences over four steps</title>
 <line x1="166.0" y1="188" x2="334.0" y2="188" stroke="#666" stroke-width="1"/>
 <circle cx="166.0" cy="188" r="2.5" fill="#666"/>
 <circle cx="222.0" cy="188" r="2.5" fill="#666"/>
@@ -133,7 +134,9 @@ We've come up with a bunch of rules that these operations follow.
 One such rule is the "distributive property," which says: =x × (y + z) = x × y + x × z=.
 
 Sometimes we change the way the operations work.
-When doing "clock math" (math with time), we say all numbers greater than 12 "wrap around", so =6+7 = 1= (=13 - 12 = 1=).
+When doing "clock math" (math with time), numbers past 12 "wrap around", so =6+7 = 1=.
+Wrapping is the same as keeping the remainder: =13 ÷ 12= leaves a remainder of 1.
+The number we wrap around, 12 in this case, is called the /modulus/, and this style of math is called /modular arithmetic/.
 Math (for some definition of math) still works on a clock face.
 
 If we can change what operations do, can we also change what numbers /are/?
@@ -166,28 +169,21 @@ Then, for a full sequence, we'd say: =0110 + 1101 = 1011= (check this yourself).
 We've changed our numbers and changed our operations.
 Are we still doing math?
 We have a new "add" operation, does it follow any familiar rules?
-In normal math, multiplication is "adding a value to itself N times", where =N= is a number.
-Can we even define multiplication at all now when =N= is a gate sequence?
+One familiar way to understand multiplication by a nonnegative whole number =N= is repeated addition: combine =N= copies of a value.
+But our new things are gate sequences, not whole numbers, so that recipe no longer tells us what multiplication should do.
+Can we define multiplication at all?
 
 It turns out that the answer to these questions is /sometimes/.
 For /some/ combinations of "things" and "operations," the familiar rules of math keep working (the distributive property, for example).
 When a combination allows the rules to work, we call it a /field/.
 A field built from only a /finite/ collection of things is called a Finite Field, or Galois Field (named after [[https://en.wikipedia.org/wiki/%C3%89variste_Galois][Évariste Galois]]).
 
-*** Prime Number Clock Math
-On a clock, "wrapping around" is actually taking a remainder: =13 ÷ 12= is "1 with a remainder of 1."
-We call the wrap-around number the "modulus"; this style of math is called "modular arithmetic".
-
+*** When Clock Math Forms a Field
 We can now build a working Galois Field using:
 - Numbers: 0, 1, 2, 3, 4, 5, 6 (7 total)
 - Operations: Clock-math/modular arithmetic
 
-There are 7 total numbers, so 7 is our modulus.
-This means, for example, =4 + 6 = 3 (mod 7)=, where the =(mod 7)= is notation reminding us that the modulus is 7.
-
-Work it out: normally =4 + 6 = 10= and =10 ÷ 7 = 1 remainder 3=.
-
-Multiplication works the same way; you do it normally, then take the remainder =(mod 7)=.
+With a modulus of 7, addition and multiplication work normally, followed by taking the remainder.
 
 Division is a bit trickier.
 For division to make sense, =6 ÷ 2= needs to have exactly one answer: "the number that produces 6 when multiplied by 2."
@@ -274,9 +270,8 @@ With these basics working, most of normal math works too.
 
 *** Math Using Gate Sequences
 Math over gate sequences turns out to be possible.
-To demonstrate this, we will do math over the set of length two sequences.
-These are =00=, =01=, =10=, and =11= (a finite set of 4 elements).
-These are still sequences, not numbers; =10= is "one zero", not "ten".
+Start with the four two-bit sequences: =00=, =01=, =10=, and =11=.
+They are still sequences, not numbers; =10= is "one zero", not "ten".
 
 We can define addition using the same rule we sketched earlier:
 
@@ -307,22 +302,23 @@ We can create =01= from:
 You can check the rest of the values if you'd like.
 
 So we have all four operations:
-- Addition: a gate is open when exactly one of the two inputs is open
+- Addition: a gate is open when exactly one of the two inputs is open (this operation is called XOR)
 - Subtraction: exactly the same as addition (try it)
 - Multiplication: complicated, but doable
 - Division: complicated, but also doable
 
-Nothing here is special about length two.
-For any length $n$, we get sequences of length $2^n$, and, we can form a field.
-There's more than one way to define multiplication for a particular $n$, but the fields are structurally equivalent (isomorphic) regardless of which multiplication table you pick.
+Nothing here is special about two-bit sequences.
+For any length $n$, there are $2^n$ different sequences, and we can form a field from them.
+There can be more than one multiplication table that works for a particular $n$, but the resulting fields are all structurally equivalent (isomorphic).
 
 # NOTE: we're using isomorphic a lot, but I am leaving it undefined on purpose.
 # if someone knows the word, this makes sense, if they do not, they can skip over this (or even better they can google it)
 # I am introducing a lot of concepts to some readers, trying to keep it from being overwhelimg
 
 #+begin_aside
-You might notice that $2^n$ is not /prime/, which was our requirement from the previous section.
-Galois Fields turn out to exist for any size $p^n$, where $p$ is prime and $n$ is a positive integer; the previous section was the $n=1$ case.
+You might notice that 4 is not /prime/, even though our clock-math field needed a prime modulus.
+Galois Fields can have any prime-power size $p^n$, where $p$ is prime and $n$ is a positive integer.
+The seven-element field used $p=7$ and $n=1$; gate-sequence fields use $p=2$ and any positive integer $n$.
 #+end_aside
 
 So, yes!
@@ -347,7 +343,7 @@ We do our operation normally, divide by the modulus (using long division of poly
 The examples in this post use $x^2+x+1$ for length two sequences, $x^3+x^2+1$ for length three, and $x^4+x+1$ for length four.
 
 Addition and subtraction are just bitwise XOR.
-Multiplying by $x$ is just a left-shift by 1.
+Multiplying by $x$ starts as a left-shift by 1; if the result is too long, we reduce it using the modulus.
 
 Once we have addition, subtraction, and multiplication by $x$, we can build the "remainder function" by adding shifted copies of the irreducible polynomial until we have the remainder.
 
@@ -361,9 +357,9 @@ Read that if this seems interesting to you!
 #+end_export
 
 * Galois Orbit Sequences
-My first idea was to use field elements directly to sequence drums then find some mechanism to move between sequences to evolve the produced rhythm.
-An /orbit/ in a field is the path you take by starting with some field element and multiplying by some other element over and over.
-We can use these to move around in the field and evolve rhythms.
+My first idea was to use field elements directly to sequence drums, then find some mechanism to move between sequences and evolve the rhythm.
+An /orbit/ in a field is the path you get by starting with one field element and repeatedly multiplying by another.
+We can use an orbit as that mechanism.
 
 In code, that'd be:
 #+begin_src python :eval no
@@ -398,7 +394,7 @@ For example, running the kick through one trip around the orbit, playing each se
 ORB = ["001", "010", "100", "101", "111", "011", "110"]
 rot = lambda k: ORB[k:] + ORB[:k]
 
-def bars(rows, top=None):
+def bars(rows, top=None, title="Orbit patterns"):
     cell, gap, bar_gap, label_w, row_gap = 26, 4, 20, 52, 10
     pad_l, pad_t, pad_b = 4, (24 if top else 6), 6
     n, nbars = len(rows[0][1][0]), len(rows[0][1])
@@ -407,6 +403,7 @@ def bars(rows, top=None):
     h = pad_t + len(rows)*(cell+row_gap) - row_gap + pad_b
     s = [f'<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" '
          f'style="max-width:{w}px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">']
+    s.append(f'<title>{title}</title>')
     for bi, t in enumerate(top or []):
         x0 = pad_l + label_w + bi*(bar_w+bar_gap)
         s.append(f'<text x="{x0+bar_w/2}" y="{pad_t-9}" font-size="12" text-anchor="middle" '
@@ -423,12 +420,13 @@ def bars(rows, top=None):
     s.append('</svg>')
     return "\n".join(s)
 
-print(bars([("kick", ORB)], ORB))
+print(bars([("kick", ORB)], ORB, "A kick plays each three-bit element in the seven-step orbit"))
 #+end_src
 
 #+RESULTS: orbitbars
 #+begin_export html
 <svg viewBox="0 0 782 56" xmlns="http://www.w3.org/2000/svg" style="max-width:782px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">
+<title>A kick plays each three-bit element in the seven-step orbit</title>
 <text x="99.0" y="15" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.65">001</text>
 <text x="205.0" y="15" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.65">010</text>
 <text x="311.0" y="15" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.65">100</text>
@@ -469,7 +467,7 @@ This sounds like:
 # both generated by static/gflfsr/gen_orbit.py
 
 On its own, it's fun.
-Each element is 3 steps long, so beats have a length that's a multiple of 3, rather than being in 4/4.
+Each element is 3 steps long, so the full loop has 21 steps and does not naturally line up with the four-step groupings common in 4/4.
 I enjoy polyrhythmic/odd-metered music, so this is a good start.
 
 Let's add more drums to the beat.
@@ -477,12 +475,14 @@ We'll give each instrument its own starting element, then play the sequences all
 This looks something like:
 #+name: orbitstack
 #+begin_src python :session seqgrid :results output html :exports results
-print(bars([("kick", ORB), ("snare", rot(2)), ("hihat", rot(4))]))
+print(bars([("kick", ORB), ("snare", rot(2)), ("hihat", rot(4))],
+           title="Three drums enter the same orbit at different points"))
 #+end_src
 
 #+RESULTS: orbitstack
 #+begin_export html
 <svg viewBox="0 0 782 110" xmlns="http://www.w3.org/2000/svg" style="max-width:782px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">
+<title>Three drums enter the same orbit at different points</title>
 <text x="4" y="24.0" font-size="15" fill="currentColor">kick</text>
 <rect x="56" y="6" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
 <rect x="86" y="6" width="26" height="26" rx="5" fill="none" stroke="#666" stroke-width="2"/>
@@ -562,20 +562,20 @@ I do not like listening to this beat.
 It's too dense, there's nothing obviously repeating to gravitate to; the structure is all buried.
 Every instrument also eventually plays =111=, which adds more busyness to the beat.
 
-Picking a different =gen= or a different =start= did not resolve the problem; every orbit I tried rotated through every element in the field (other than =000=).
-The field has every possible 3 bit pattern, so this ends up just being dense and chaotic.
+Changing =start=, or choosing another =gen= that produced a full orbit, did not resolve the problem.
+The orbit visits every possible nonzero three-bit pattern, so this ends up just being dense and chaotic.
 
 #+begin_aside
 This is the opposite of what makes Euclidean rhythms work.
 A Euclidean rhythm designs a well-spaced pattern for each instrument.
-An orbit just /enumerates/ every possible pattern, and some patterns in a field aren't ones you'd pick to be musical.
+A full orbit just /enumerates/ every possible nonzero pattern, and some patterns in a field aren't ones you'd pick to be musical.
 #+end_aside
 
 Let's try something different.
 
 ** Bits as Patterns
 Let's "transpose" the sequences.
-For sequences that are 3 elements long, we'll sequence 3 different instruments.
+For three-bit elements, we'll sequence 3 different instruments.
 Then, as we move through the orbit, use each bit of each element as the gates for the 3 instruments.
 
 The pattern an instrument plays is defined by the whole orbit, rather than a single element.
@@ -584,7 +584,7 @@ Here's a diagram to help this make sense:
 
 #+name: transpose
 #+begin_src python :session seqgrid :results output html :exports results
-def unpack(elements, labels):
+def unpack(elements, labels, title="An orbit transposed into instrument rows"):
     cell, gap, lab_w = 34, 6, 56
     pad_l, pad_t = 4, 14
     txt_h, brace_h, arrow_h = 18, 8, 26
@@ -595,6 +595,7 @@ def unpack(elements, labels):
     x = lambda c: pad_l + lab_w + c*pitch
     s = [f'<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" '
          f'style="max-width:{w}px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">']
+    s.append(f'<title>{title}</title>')
     for c, el in enumerate(elements):
         cx = x(c) + cell/2
         s.append(f'<text x="{cx}" y="{pad_t+11}" font-size="14" text-anchor="middle" fill="currentColor">{el}</text>')
@@ -613,12 +614,14 @@ def unpack(elements, labels):
     s.append('</svg>')
     return "\n".join(s)
 
-print(unpack(ORB, ["kick", "snare", "hihat"]))
+print(unpack(ORB, ["kick", "snare", "hihat"],
+             "Seven three-bit orbit elements transposed into three instrument rows"))
 #+end_src
 
 #+RESULTS: transpose
 #+begin_export html
 <svg viewBox="0 0 338 186" xmlns="http://www.w3.org/2000/svg" style="max-width:338px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">
+<title>Seven three-bit orbit elements transposed into three instrument rows</title>
 <text x="77.0" y="25" font-size="14" text-anchor="middle" fill="currentColor">001</text>
 <path d="M61,32 v5 h32 v-5" fill="none" stroke="#666" stroke-width="1.5"/>
 <line x1="77.0" y1="42" x2="77.0" y2="56" stroke="#666" stroke-width="1.5"/>
@@ -682,13 +685,13 @@ This sounds like:
 This new beat sounds way better to me.
 What's going on?
 
-* Every Instrument Plays the Same Rhythm
+* Lining Up the Rhythms
 Here are those three rhythms lined up against each other.
 
 # all orbits and rows below verified against ~/programming/gf-seq
 : kick    0011101
-: snare   0100111
 : hihat   1001110
+: snare   0100111
 
 Maybe you can see what is happening.
 The hihat is playing the same rhythm as the kick, just shifted right by one space.
@@ -701,7 +704,7 @@ MARK = "#cc6666"
 def sr(bits, k=1):
     return bits[-k:] + bits[:-k] if k else bits
 
-def shiftchain(bits, lanes, nrows):
+def shiftchain(bits, lanes, nrows, title="Rows shown as cyclic shifts"):
     cell, gap, note_w = 34, 6, 84
     pad_l, pad_t, row_gap = 8, 8, 26
     m = len(bits)
@@ -711,6 +714,7 @@ def shiftchain(bits, lanes, nrows):
     h = pad_t + nrows*cell + (nrows-1)*row_gap + 8
     s = [f'<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" '
          f'style="max-width:{w}px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">']
+    s.append(f'<title>{title}</title>')
     for r in range(nrows):
         row = sr(bits, r)
         y = pad_t + r*(cell+row_gap)
@@ -731,12 +735,14 @@ def shiftchain(bits, lanes, nrows):
     s.append('</svg>')
     return "\n".join(s)
 
-print(shiftchain("0011101", {"0011101": "kick", "1001110": "hihat", "0100111": "snare"}, 3))
+print(shiftchain("0011101", {"0011101": "kick", "1001110": "hihat", "0100111": "snare"}, 3,
+                 "Kick, hihat, and snare rhythms shown as cyclic shifts"))
 #+end_src
 
 #+RESULTS: rollover
 #+begin_export html
 <svg viewBox="0 0 366 170" xmlns="http://www.w3.org/2000/svg" style="max-width:366px;width:100%;height:auto;font-family:Consolas,Monaco,monospace">
+<title>Kick, hihat, and snare rhythms shown as cyclic shifts</title>
 <text x="298" y="30.0" font-size="14" fill="currentColor">kick</text>
 <rect x="8" y="8" width="34" height="34" rx="7" fill="none" stroke="#cc6666" stroke-width="3.5"/>
 <rect x="48" y="8" width="34" height="34" rx="7" fill="none" stroke="#666" stroke-width="2"/>
@@ -769,7 +775,7 @@ print(shiftchain("0011101", {"0011101": "kick", "1001110": "hihat", "0100111": "
 #+end_export
 
 I tried a bunch of different start values, gen values, and field polynomials.
-This property held for everything I tried.
+At the time, this property seemed to hold for everything I tried.
 
 For example, with =gen=100= (and the same field and start), we get a different full orbit, but the rows are still rotations of each other:
 : orbit   001 100 111 110 010 101 011
@@ -784,239 +790,214 @@ Here's another one for a larger field (follow the =1111= at the end of the first
 :        010011010111100
 :        100010011010111
 
-Transposing a full orbit always seems to produce a bunch of instrument tracks that are just shifts of each other.
+Transposing a full orbit always seems to produce a bunch of instrument rows that are just shifts of each other.
 
 * This is Strange
 Why would the kick's rhythm have any relationship to the snare's?
 
-Look back at the multiplication table for the 4 element field.
+Look back at the multiplication table for the [[*Math Using Gate Sequences][four-element field]].
 Consider =01 × 01 = 01= and =11 × 11 = 10=.
 The inputs to both multiplications end in a =1=, but the results =01= and =10= end in =1= and =0= respectively.
 Clearly multiplication "mixes" all the bits up somehow.
 
 If multiplication mixes up the entire sequence, how do we end up with the /same/ sequence shifted around when we turn the sequences sideways?
 
-Weirder still, the orbit visits every element of the field (other than =000=), so the only thing it decides is the order they come in.
-An orbit is also a loop, so starting it somewhere else is the same trip around; what matters is the cycle.
-There are 720 cycles through the 7 elements, and only 48 of them have the shifting property.
+A full orbit contains all seven nonzero elements, regardless of where it starts.
+Changing the start only rotates the loop; the generator determines their order.
+If we pin one element in the first position, the other six can appear in $6! = 720$ possible orders.
+Only 48 of those cycles make the three transposed rows shifts of one another.
+I checked all 720 by brute force; every full field orbit is one of those 48.
 
-As the field gets bigger the number of cycles explodes, and the chances of landing on one that shifts drop off quickly:
+Still, an orbit only does one thing: multiply by the same value over and over.
+Why does that make the rows line up?
 
-# AI CONTENT:
-# 
-# dz: i do not understand fully yet
-#
-# Counts are exact and treat an ordering as a cycle, since rotating an orbit
-# just starts the same loop somewhere else. n is the number of instruments,
-# L = 2^n - 1 is the sequence length, and |GL(n,2)| is the number of invertible
-# n-bit linear maps, product of (2^n - 2^i) for i in 0..n-1.
-#
-#   cycles            = (L-1)!
-#   cycles that shift = phi(L) * |GL(n,2)| / (n*L)
-#
-# A cycle shifts exactly when its columns are c(t) = A^t c(0) for an invertible
-# linear map A of full order L, so the second formula counts those maps: one
-# per cycle, since the starting vector only rotates it. Verified by brute force
-# at length 7 and by direct construction at length 15.
-#
-#   len  7: 48            of 720
-#   len 15: 2,688         of 87,178,291,200
-#   len 31: 1,935,360     of 2.65e32
-#   len 63: 1,919,877,120 of 3.15e85
-#
-# The 12 vs 36 split at length 7: the 48 maps fall into 8 groups of 6, and each
-# group is one way of reading 3 bits as a field element. Fixing the convention
-# "bit i is the coefficient of x^i" leaves only the 2 irreducible cubics, so we
-# see 2 groups x 6 choices of gen = 12. The other 36 are the same orbits under
-# a different basis: apply any invertible linear map P to every element and the
-# dynamics becomes P A P^-1, which is conjugate to A, so the orbit structure is
-# unchanged. Every order-L map is conjugate to multiplication by a primitive
-# element, which is why all 48 are orbits (checked directly).
-#
-# Note P must be linear, not just a shuffle: permuting bit positions alone only
-# reaches 36 of the 48, the rest need XOR mixing. Linear is what makes each new
-# lane an XOR of old lanes, and XORing two rotations of an m-sequence gives
-# another rotation of it.
+[[*Conclusion][Skip the proof!]]
 
-#+ATTR_HTML: :class multable
-| sequence length | possible cycles    | cycles that shift | odds            |
-|-----------------+--------------------+-------------------+-----------------|
-|               7 | 720                | 48                | 1 in 15         |
-|              15 | $8.7\times10^{10}$ | 2,688             | 1 in 32 million |
-|              31 | $2.7\times10^{32}$ | 1.9 million       | 1 in $10^{26}$  |
-|              63 | $3.1\times10^{85}$ | 1.9 billion       | 1 in $10^{76}$  |
-
-All 48 are derived from an orbit.
-
-#+begin_aside
-12 of them are orbits directly.
-The other 36 are isomorphic to those 12, just with the bits mixed together differently.
-#+end_aside
-
-These sequences are hard to run into by accident, and multiplication looks like the wrong tool for producing them.
-How does it work?
-
-* Proof Sketch
-A real proof is needed.
-
-.... FIXME a short sketch? is that doable without the fundamentals?
-Do not expect people to make it all the way through, should hint at this, or collapse the proof?
-subheaders dont work in the proof.
-also FIXME since I'm introducing the actual construction here, should I remove the aside above (and the aside features entirely?)
-
+* Why the Rows Shift
 ** Setup
-We must construct the field $GF(p^n)$, $p$ prime, as an /extension field/ over $GF(p)$.
+We want to prove that, in any full orbit, every row is a shift of row 0.
 
-Definitions:
-- irreducible polynomial - a polynomial that is not factorable using coefficients in $GF(p)$. Think of it like a prime number.
-- primitive polynomial - a special case of the irreducible polynomial.
-- primitive element - an element in the field that is a root of a primitive polynomial
-  
-Pick an irreducible polynomial in $x$ over $GF(p)$, $f(x)$.
-Use $f(x)$ as the modulus of the field.
+Define $L=2^n-1$; the number of nonzero elements in the field.
 
-When the entire field is generated directly from the irreducible polynomial, the irreducible polynomial is primitive.
-Primitive vs irreducible, as far as I understand, is determined by simply checking the property, similar to primality.
-
-From now on, we assume we are working in a field generated by a primitive polynomial.
-The other fields are isomorphic to it, of course, but the exact bit patterns work differently and the construction is harder to follow.
-
-The construction algorithm is, assume $\alpha$ is a root of $f(x)$.
-Then, the field is
-$$ \{ 0 \} \cup \{ \alpha^i \mid i \in [0, p^n-1) \} $$
-
-** Example
-For example, we previously used $f(x) = x^2 + x + 1$ as the modulus for $GF(2^2)$.
-$f(x)$ has no root in $GF(2)$.
-Try it, $f(0)=1$ and $f(1)=1$.
-
-$\alpha$ is a value that makes $x^2 + x + 1 = 0$ in $GF(4)$ (which is a bit circular).
-These are $\alpha=x$ and $\alpha=x+1$.
-Remember, operations are done modulo $f(x)$, so what we want is the remainder after dividing by $f(x)$.
-- remainder of $f(x) / f(x)$ is $0$
-- remainder of $f(x+1) / f(x)$ is $0$ (work it out)
-
-# (x+1)(x+1) + x + 1 + 1
-# x^2 + x + x + 1 + x + 1 + 1   -- cancel the 1+1=0 and x+x=0
-# x^2 + x + 1
-
-Either root works as $\alpha$.
-
-# the modulus is always the divisor: you compute a power of alpha, then divide
-# what you got by the modulus and keep the remainder
-#
-# using alpha = x+1
-#
-# alpha^2 = (x+1)(x+1) = x^2 + x + x + 1 = x^2 + 1
-#
-#                         1  remainder x
-#              --------------
-#  x^2 + x + 1 | x^2     + 1
-#              + x^2 + x + 1
-#                -------------
-#                  0   + x + 0
-#
-# or alpha = x, then alpha^2 = x^2
-#
-#                         1  remainder x + 1
-#              --------------
-#  x^2 + x + 1 | x^2
-#              + x^2 + x + 1
-#                -------------
-#                  0   + x + 1
-
-Taking $\alpha = x + 1$, the field's elements are:
-| $\alpha$   | polynomial | bitstring |
-|------------+------------+-----------|
-| 0          | 0          |        00 |
-| $\alpha^0$ | 1          |        01 |
-| $\alpha^1$ | x + 1      |        11 |
-| $\alpha^2$ | x          |        10 |
-
-The /order/ that we list the elements in the table changes, but the resulting field is the same either way.
-We get the same four elements and the same element-wise addition/multiplication tables
-
-The element $x$ is a primitive element (it is a root of the primitive polynomial).
-
-When we generate an orbit using the primitivie element, it will visit every element of the field (other than 0).
-We already know this; $\alpha$, which we used to generate the field, was a primitive element.
-The orbit starting at 1 with gen $\alpha$ produced the field, so the orbit would visit the entire field.
-
-FIXME "a primitive element" or "the primitative element"?
-
-** Proof
-
-Define $e(t)$ to be the $t$'th element of an orbit generated by a primitive element $x$.
+An orbit is:
 $$
-e(t) = start * x^t
+e(t)=s g^t,
+$$
+where $s$ is =start= and $g$ is =gen=, both nonzero.
+Because the orbit is full, $g^0,g^1,\ldots,g^{L-1}$ are distinct and $g^L=1$.
+
+Multiplying by a fixed nonzero value rearranges the field: every element comes out exactly once, or division would break.
+
+Let $b_i$ be the function that returns bit $i$ of an element, counting from the left.
+For example, $b_0(110)=1$ and $b_2(110)=0$.
+
+For each possible shift $k$, and any element $z$, define a "shift" function $S_k$:
+$$
+S_k(z)=b_0(g^kz), \qquad 0\leq k\lt L.
 $$
 
-It is always possible to write the irreducible polynomial as something like
+Observe:
+$$ g^k e(t) = g^k s g^t = s g^{k+t} = e(t+k) $$
+
+So then, if we plug in an orbit $e(t)$ for $z$, we get:
 $$
-\sum_{i=0}^n c_i x^i
+S_k(e(t))=b_0(g^ke(t))=b_0(e(t+k)),
 $$
 
-We can always pick a root of $x^n$, giving us roots of $x^n$ and $ \sum_{i=0}^{n-1} c_i x^i$
+In English, this means that $S_k$ produces row 0 (on the orbit) shifted by $k$ steps.
+
+We will show that, in a full orbit, for every $b_i$ there is some $S_k$ that is the same function.
+
+** Counting Readouts
+Call any function that takes an element and returns a bit a /readout/:
+$$
+f:\{n\text{-bit field elements}\}\longrightarrow\{0,1\}.
+$$
+
+Two readouts are the /same/ when they return the same bit for every element.
+
+A readout is /additive/ if it respects addition:
+$$
+f(u+v)=f(u)+f(v)
+$$
+
+Both $+$ signs are the same XOR.
+Field addition applies it one position at a time, across all $n$ positions at once.
+A readout hands back a single bit, so on the right there is only one position left to apply it to.
+
+Addition of any two field elements never mixes the bits across positions.
+So this means that every $b_i$ is an additive readout:
+$$
+b_i(u+v) = b_i(u) + b_i(v) \qquad \forall i
+$$
+
+No $b_i$ is 0 everywhere, either: $b_i$ returns 1 on the element whose only =1= sits at position $i$.
+
+We can count the additive readouts by looking at what they do to elements containing a single =1=.
+
+In a three-bit field, suppose $f$ is additive.
+Since $101 = 100 + 001$,
+$$
+f(101)=f(100)+f(001).
+$$
+
+We can apply the rule repeatedly. Since $111=110+001$ and $110=100+010$,
+\begin{align*}
+f(111) &= f(110)+f(001) \\
+       &= f(100)+f(010)+f(001).
+\end{align*}
+
+A three-bit field has three single-=1= elements: =100=, =010=, =001=.
+Every element breaks down into some combination of them, so $f$ is determined entirely by $f(100)$, $f(010)$, and $f(001)$.
+Every other output $f(u)$ is found by XORing some combination of these three bits.
+Each of the three answers can be either 0 or 1, giving at most $2^3$ additive readouts.
 
 #+begin_aside
-For example, with $f(x) = x^2 + x + 1$, we set $x^2 = x + 1$.
+An element can be broken down with its components in a different order, and we could repeat some elements.
+Neither changes the valid count: XOR is commutative, and two copies of the same bit cancel.
+For example,
+$$
+f(100)+f(100)+f(001)=f(100+100+001)=f(001).
+$$
 #+end_aside
 
-Now, take a look at the first $n$ terms of $e(t)$.
+With $n$ bits, this means there are at most $2^n$ additive readouts.
+One is 0 everywhere, leaving at most $2^n-1=L$ nonzero additive readouts.
 
-| $t$ | $e(t)$      |
-|-----+-------------|
-|   0 | start * 1   |
-|   1 | start * x   |
-|   2 | start * x^2 |
-| ... | ...         |
-|   n | start * x^n |
-
-
-That $n$th term can always be rewritten with respect to some previous term.
+** The Argument
+We just showed that there are at most $L$ nonzero additive readouts.
+We also have $L$ shift functions:
 $$
-start * x^n = start * (\sum_{i=0}^{n-1} c_i * x^i)
+S_0,S_1,\ldots,S_{L-1}.
 $$
 
-#+begin_aside
-In our example, $e(2) = start * x^2$.
-Which is also $e(2) = start * (x + 1)$.
-#+end_aside
+If these are all additive, nonzero, and different from one another, they must fill all $L$ available spots.
+There are three things to check.
 
-Distribute start inside:
+1. Each $S_k$ is additive.
+   Multiplication distributes, and $b_0$ is additive:
+   \begin{align*}
+   S_k(u+v)
+     &= b_0(g^k(u+v)) \\
+     &= b_0(g^ku+g^kv) \\
+     &= b_0(g^ku)+b_0(g^kv) \\
+     &= S_k(u)+S_k(v).
+   \end{align*}
+
+2. No $S_k$ is 0 everywhere.
+   Multiplication by $g^k$ rearranges the field, so some element $z$ must satisfy $g^kz=100\ldots0$.
+   For that element,
+   $$
+   S_k(z)=b_0(g^kz)=b_0(100\ldots0)=1.
+   $$
+   So $S_k$ is not 0 everywhere.
+
+3. No two shift amounts give the same readout.
+   Suppose two different shifts produce the same readout: $S_j=S_k$, with $j\neq k$.
+   Then, for every $z$,
+   $$
+   b_0(g^jz)=b_0(g^kz).
+   $$
+
+   XORing these two equal bits gives 0.
+   Since $b_0$ is additive,
+   \begin{align*}
+   0
+     &= b_0(g^jz)+b_0(g^kz) \\
+     &= b_0(g^jz+g^kz) \\
+     &= b_0((g^j+g^k)z).
+   \end{align*}
+
+   Because $j\neq k$, the coefficient $g^j+g^k$ is nonzero.
+   Multiplication by this coefficient rearranges the field, so the equation would make $b_0$ return 0 on every element.
+   But $b_0(100\ldots0)=1$, so that is impossible.
+
+We have found $L$ distinct nonzero additive readouts, the most there can be.
+Thus, for every $i$, there is some $k$ such that
 $$
-start * x^n = (\sum_{i=0}^{n-1} start * c_i * x^i)
+b_i(e(t))=S_k(e(t))=b_0(e(t+k)).
 $$
+Every row is therefore a shift of row 0, so every pair of rows differs by a shift. $\square$
 
-#+begin_aside
-$e(2) = (start * x) + (start + 1)$
-#+end_aside
-
-We can always take $x^k = x^n * x^{k-n}$ as well, so when $t<n-1$:
+** Why Full Orbits Matter
+Suppose the orbit repeats after $d$ steps, where $d\lt L$.
+Then $g^d=1$, so
 $$
-e(k) = start * x^n = start * x^{k-n} * x^n = (start * x^n) * x^{k-n}
+S_{k+d}(z)=b_0(g^{k+d}z)=b_0(g^kz)=S_k(z).
 $$
+There are only $d$ different shift functions.
+The count no longer matches: there are $d$ shift functions, not $L$, so nothing forces every $b_i$ to be a shift function.
 
-Which means that, at position $n$, we are just performing combinations of previous elements.
-$c_i$ is always either 0 or 1.
+For example, in the field of four-bit elements ($2^4=16$ elements), =gen=1000= produces this short orbit:
+: orbit   0001 1000 1100 1010 1111
+: rows    01111
+:         00101
+:         00011
+:         10001
 
+Row 0 contains four ones, while every other row contains two.
+A shift preserves that count, so row 0 cannot be a shift of any other row.
+The property can fail when the orbit is short.
 
-*** Where this breaks
-FIXME
-
+I had tried short orbits earlier, but some of them were deceptive: the active rows were shifts of one another while another row was all zero.
+That looked like another version of the same pattern, and I missed that only full orbits guarantee it for /every/ row.
+An all-zero row just means that the short orbit never visits an element with a =1= in that bit position.
 
 * Conclusion
 It turns out I hadn't discovered anything.
-Reading an orbit a row at a time is a [[https://en.wikipedia.org/wiki/Linear-feedback_shift_register][Linear Feedback Shift Register]]: a pile of bits that shifts along on every tick, with a new one XORed in at the end.
-They've been used since the 1960s to make random-looking bits in hardware, the sequences they produce are called /m-sequences/, and "every bit of the register runs the same sequence at a different offset" is a standard fact about them.
+In the polynomial view from the optional detour, the connection is literal: our first =gen=010= is $x$, and multiplying by $x$ shifts the bits left, XORing the modulus back in when a bit falls off the end.
+That is a Linear Feedback Shift Register update.
+
+The rows of a full orbit are /m-sequences/, the sequences produced by maximal-length [[https://en.wikipedia.org/wiki/Linear-feedback_shift_register][Linear Feedback Shift Registers]].
+Being shifted copies of one another is one of their standard properties.
 
 So I rebuilt a piece of old hardware by accident, and it happens to make decent drum patterns.
 
 The rhythms work.
 I'm still looking for the melodies.
 
-
-* A Note on AI
-- wrote code for diagrams, but many were (badly) hand drawn first then I asked it for code. I considered just using the drawings, which migth have been more fun and more human?
-- wrote code for the media, but just because exporting from tidal/haskell where I'm doing the work was tricky
-- reviewed the prose heavily, and modified it somewhat, but I wrote most of the prose myself as a human
+* AI Disclosure
+- AI was used heavily for this post, but nearly all of the prose was rewritten by me.
+- Many of the diagrams use AI-generated SVG code, but most were hand-drawn first, then pasted into Claude Code, which generated the SVGs.
+- The sound clips were produced by entirely AI-generated code that I did not read.
+- The proof went through three major versions, with substantial AI help during development and review.

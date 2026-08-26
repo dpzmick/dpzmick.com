@@ -15,8 +15,6 @@ body {
     width: 80%; /* effectively min */
 }
 
-h2 { border-bottom: 1px solid #666; padding-bottom: 0.2em; }
-
 /* lists hug the sentence that introduces them */
 p:has(+ ul), p:has(+ ol) {
     margin-bottom: 0.3em;
