@@ -121,3 +121,27 @@ table thead tr th {
     margin-right: 0;
     display: inline;
 }
+
+/* mobile overrides; must stay last, media queries add no specificity and
+   these override plain `code`/`img` rules above by source order alone */
+@media (max-width: 40rem) {
+    /* 80% wastes too much of a phone screen; pull the margins in */
+    #content, #preamble, #postamble {
+        width: 94%;
+    }
+
+    img {
+        max-width: 100%;
+    }
+
+    /* a long path/identifier can't nowrap on a phone without dragging the
+       whole page sideways; blocks keep scrolling in their own box */
+    code {
+        white-space: normal;
+        overflow-wrap: break-word;
+    }
+
+    pre code {
+        white-space: inherit;
+    }
+}
